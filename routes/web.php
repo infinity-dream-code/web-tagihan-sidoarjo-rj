@@ -18,16 +18,24 @@ Route::get('/list-tahun-akademik', [TagihanController::class, 'listTahunAkademik
 
 Route::post('/cek-tagihan', function (Request $request) {
     try {
+        $payload = [
+            'va' => TagihanController::normalizeVa($request->input('va')),
+            'tahun_akademik' => $request->input('tahun_akademik')
+        ];
+
+        $path = 'cek-tagihan';
+        if ($request->filled('password')) {
+            $payload['password'] = $request->input('password');
+            $path = 'cek-tagihan-pw';
+        }
+
         $response = Http::timeout(30)
             ->withoutVerifying()
             ->withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json'
             ])
-            ->post(config('services.tagihan_ws.url').'?path=cek-tagihan', [
-                'va' => TagihanController::normalizeVa($request->input('va')),
-                'tahun_akademik' => $request->input('tahun_akademik')
-            ]);
+            ->post(config('services.tagihan_ws.url').'?path='.$path, $payload);
 
         \Log::info('WS cek-tagihan response', [
             'status' => $response->status(),

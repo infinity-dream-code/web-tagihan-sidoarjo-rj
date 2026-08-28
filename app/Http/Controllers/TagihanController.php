@@ -40,7 +40,7 @@ class TagihanController extends Controller
             return '-';
         }
 
-        return '797766'.str_pad($n, 10, '0', STR_PAD_LEFT);
+        return $n;
     }
 
     public function cek(Request $request)
@@ -71,24 +71,38 @@ class TagihanController extends Controller
     {
         $request->validate([
             'no_cust' => 'required|string',
+            'password' => 'required|string',
             'academic_year' => 'required|string'
         ]);
 
+        $payload = [
+            'va' => self::normalizeVa($request->no_cust),
+            'password' => $request->password,
+            'tahun_akademik' => $request->academic_year
+        ];
+
         $response = Http::timeout(30)
             ->withoutVerifying()
-            ->post($this->wsUrl('cek-tagihan'), [
-                'va' => self::normalizeVa($request->no_cust),
-                'tahun_akademik' => $request->academic_year
-            ]);
+            ->acceptJson()
+            ->asJson()
+            ->post($this->wsUrl('cek-tagihan-pw'), $payload);
+
+        if ($response->status() === 404) {
+            $response = Http::timeout(30)
+                ->withoutVerifying()
+                ->acceptJson()
+                ->asJson()
+                ->post($this->wsUrl('cek-tagihan'), $payload);
+        }
 
         $result = $this->withNova($response->json(), $request->no_cust);
 
         if (empty($result['status'])) {
             return back()->with([
-                'error' => $result['message'] ?? 'VA salah, atau data tidak ditemukan',
+                'error' => $result['message'] ?? 'VA atau password salah, atau data tidak ditemukan',
                 'va' => $request->no_cust,
                 'academic_year' => $request->academic_year
-            ]);
+            ])->withInput($request->except('password'));
         }
 
         return view('index3', compact('result'))
@@ -123,36 +137,69 @@ class TagihanController extends Controller
             'custid' => 'required',
             'nocust' => 'required|string',
             'namacust' => 'required|string',
-            'array_tagihan' => 'required',
-            'total' => 'required|numeric|min:1',
         ]);
 
-        $arrayTagihan = $request->input('array_tagihan');
-        if (is_array($arrayTagihan)) {
-            $arrayTagihan = implode(',', $arrayTagihan);
+        $pairs = [];
+        $items = $request->input('items');
+        if (is_array($items) && count($items)) {
+            foreach ($items as $item) {
+                $aa = (int) ($item['AA'] ?? $item['aa'] ?? 0);
+                $amount = (int) ($item['amount'] ?? $item['billam'] ?? 0);
+                if ($aa > 0 && $amount > 0) {
+                    $pairs[] = ['aa' => $aa, 'amount' => $amount];
+                }
+            }
+        } else {
+            $arrayTagihan = $request->input('array_tagihan', $request->input('arrayTagihan', ''));
+            if (is_array($arrayTagihan)) {
+                $arrayTagihan = implode(',', $arrayTagihan);
+            }
+            $ids = collect(explode(',', (string) $arrayTagihan))
+                ->map(fn ($id) => (int) trim($id))
+                ->filter(fn ($id) => $id > 0)
+                ->values();
+
+            $billamRaw = $request->input('billam', $request->input('total', ''));
+            if (is_array($billamRaw)) {
+                $amounts = array_map('intval', $billamRaw);
+            } else {
+                $amounts = collect(explode(',', (string) $billamRaw))
+                    ->map(fn ($n) => (int) trim($n))
+                    ->values()
+                    ->all();
+            }
+
+            foreach ($ids as $i => $aa) {
+                $amount = (int) ($amounts[$i] ?? 0);
+                if ($aa > 0 && $amount > 0) {
+                    $pairs[] = ['aa' => $aa, 'amount' => $amount];
+                }
+            }
         }
 
-        $ids = collect(explode(',', (string) $arrayTagihan))
-            ->map(fn ($id) => (int) trim($id))
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
+        if (empty($pairs)) {
             return response()->json([
                 'status' => false,
                 'message' => 'Tagihan yang dipilih tidak valid',
             ], 422);
         }
 
+        $idsCsv = collect($pairs)->pluck('aa')->implode(',');
+        $billamCsv = collect($pairs)->pluck('amount')->implode(',');
+        $total = (int) collect($pairs)->sum('amount');
+        $nocust = self::normalizeVa($request->nocust);
+
         $payload = [
             'custid' => $request->custid,
-            'nocust' => self::normalizeVa($request->nocust),
+            'nocust' => $nocust,
             'namacust' => $request->namacust,
-            'array_tagihan' => $ids->implode(','),
-            'arrayTagihan' => $ids->implode(','),
-            'total' => (int) $request->total,
-            'billam' => (int) $request->total,
+            'array_tagihan' => $idsCsv,
+            'arrayTagihan' => $idsCsv,
+            'billam' => $billamCsv,
+            'total' => $total,
+            'billam_total' => $total,
+            'billtot' => $total,
+            'items' => $pairs,
         ];
 
         try {
@@ -180,18 +227,15 @@ class TagihanController extends Controller
                 ?? $result['data']['nova']
                 ?? $result['va_number']
                 ?? $result['nova']
-                ?? (is_string($result['data'] ?? null) ? $result['data'] : null);
+                ?? (is_string($result['data'] ?? null) ? $result['data'] : null)
+                ?? $nocust;
 
-            if (!empty($result['status']) && $va) {
+            if (!empty($result['status'])) {
                 $result['data'] = array_merge(
                     is_array($result['data'] ?? null) ? $result['data'] : [],
                     ['va_number' => $va]
                 );
 
-                return response()->json($result);
-            }
-
-            if ($response->successful() && !empty($result['status'])) {
                 return response()->json($result);
             }
 

@@ -24,173 +24,88 @@ class Tagihan
 
     public function insertVA($custid, $nocust, $namacust, $arrayTagihan, $billam)
     {
-        $now = new DateTime();
-        $year = substr($now->format('Y'), -1);
-        $month = $now->format('m');
-        $day = $now->format('d');
+        $ids = array_values(array_filter(array_map('intval', explode(',', str_replace(' ', '', (string) $arrayTagihan)))));
+        $amounts = is_array($billam)
+            ? array_map('intval', $billam)
+            : array_map('intval', explode(',', str_replace(' ', '', (string) $billam)));
 
-        $datePrefix = $year . $month . $day;
-        $sql = "SELECT MAX(ID) AS last_id, MAX(NOVA) AS last_nova FROM scctva WHERE NOVA LIKE '%$datePrefix%'";
-        $stmt = $this->db->query($sql);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($row && $row['last_nova']) {
-            $lastIncrement = (int)substr($row['last_nova'], -4);
-            $increment = str_pad($lastIncrement + 1, 4, '0', STR_PAD_LEFT);
-        } else {
-            $increment = '0001';
+        if (empty($ids) || count($ids) !== count($amounts)) {
+            return false;
         }
 
-        $va_core = "8" . $datePrefix . $increment;
-        $va_full = "751000" . $va_core;
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sqlBills = "
+            SELECT b.AA, b.BILLAM, b.BILLCD, COALESCE(m.isINSTALLMENT, 0) AS is_installment
+            FROM scctbill b
+            LEFT JOIN mst_tagihan m ON m.kode = b.BILLCD
+            WHERE b.CUSTID = ? AND b.AA IN ($placeholders)
+        ";
+        $stmtBills = $this->db->prepare($sqlBills);
+        $stmtBills->execute(array_merge([(int) $custid], $ids));
+        $bills = [];
+        foreach ($stmtBills->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $bills[(int) $row['AA']] = $row;
+        }
 
-        $sqlTagihan = "SELECT AA FROM scctbill WHERE AA IN ($arrayTagihan)";
-        $stmtTagihan = $this->db->query($sqlTagihan);
-        $rows = $stmtTagihan->fetchAll(PDO::FETCH_ASSOC);
-        $tagihanAA = implode(',', array_column($rows, 'AA'));
+        $paidMap = $this->getPaidMap($custid, $nocust);
+        $validIds = [];
+        $validAmounts = [];
+
+        foreach ($ids as $i => $aa) {
+            if (!isset($bills[$aa])) {
+                return false;
+            }
+            $bill = $bills[$aa];
+            $sisa = max(0, (int) $bill['BILLAM'] - (int) ($paidMap[$aa] ?? 0));
+            $amt = (int) $amounts[$i];
+            $bolehCicil = (int) $bill['is_installment'] === 1;
+
+            if ($amt <= 0 || $amt > $sisa) {
+                return false;
+            }
+            if (!$bolehCicil && $amt !== $sisa) {
+                return false;
+            }
+
+            $validIds[] = $aa;
+            $validAmounts[] = $amt;
+        }
+
+        $billamCsv = implode(',', $validAmounts);
+        $billtot = array_sum($validAmounts);
+        $tagihanAA = implode(',', $validIds);
 
         $insert = "
-        INSERT INTO scctva (CUSTID, NOCUST, NMCUST, NOVA, ArrayTagihan, BILLAM, STATUS, CREATED_AT)
-        VALUES (:custid, :nocust, :namacust, :nova, :arrayTagihan, :billam, 1, NOW())
-    ";
+            INSERT INTO scctva (CUSTID, NOCUST, NMCUST, NOVA, ArrayTagihan, BILLAM, BILLTOT, STATUS, CREATED_AT)
+            VALUES (:custid, :nocust, :namacust, :nova, :arrayTagihan, :billam, :billtot, 1, NOW())
+        ";
         $stmtInsert = $this->db->prepare($insert);
         $stmtInsert->execute([
             ':custid' => $custid,
             ':nocust' => $nocust,
             ':namacust' => $namacust,
-            ':nova' => $va_core,
+            ':nova' => $nocust,
             ':arrayTagihan' => $tagihanAA,
-            ':billam' => $billam
+            ':billam' => $billamCsv,
+            ':billtot' => $billtot,
         ]);
 
-        return $va_full;
+        return $nocust;
     }
 
     public function cekTagihanByVA($va_number, $tahun_akademik = null)
     {
-        if (strpos($va_number, '751000') === 0) {
-            $num2nd = substr($va_number, 6);
-        } else {
-            $num2nd = $va_number;
-        }
-
-        $sql = "
-        SELECT 
-            c.CUSTID AS id,
-            c.NOCUST AS no_cust,
-            c.NUM2ND AS num2nd,
-            c.NMCUST AS nama,
-            c.CODE02 AS jenjang,
-            c.DESC02 AS kelas,
-            c.CODE03 AS kode_jurusan,
-            c.DESC03 AS jurusan,
-            c.DESC04 AS tahun_akademik,
-            c.DESC05 AS alamat,
-            c.GENUS AS orangtua,
-            c.LastUpdate AS updated_at
-        FROM scctcust c
-        WHERE c.NOCUST = :nocust
-        LIMIT 1
-    ";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':nocust' => $num2nd]);
-        $siswa = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $siswa = $this->getSiswaByVa($va_number);
         if (!$siswa) {
             return null;
         }
 
-        $sqlSaldo = "SELECT SALDO FROM v_saldo_va WHERE NOCUST = :nocust LIMIT 1";
-        $stmtSaldo = $this->db->prepare($sqlSaldo);
-        $stmtSaldo->execute([':nocust' => $num2nd]);
-        $saldoRow = $stmtSaldo->fetch(PDO::FETCH_ASSOC);
-        $saldo = $saldoRow['SALDO'] ?? 0;
-
-        $siswa['va_number'] = $va_number;
-        $siswa['saldo'] = $saldo;
-
-        if (!$tahun_akademik || strtolower($tahun_akademik) === 'all') {
-            $tahun_akademik = null;
-        }
-
-        $baseFilter = "b.CUSTID = :custid";
-        if ($tahun_akademik) {
-            $baseFilter .= " AND b.BTA = :tahun_akademik";
-        }
-
-        $sqlBelum = "
-        SELECT 
-            b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
-            b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
-            d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
-            b.PAIDST, b.PAIDDT
-        FROM scctbill b
-        LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
-        LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
-        WHERE $baseFilter AND b.PAIDST = '0' AND b.FSTSBolehBayar = '1'
-        ORDER BY b.BILLAC, d.tahun
-    ";
-        $stmtBelum = $this->db->prepare($sqlBelum);
-        $params = [':custid' => $siswa['id']];
-        if ($tahun_akademik) $params[':tahun_akademik'] = $tahun_akademik;
-        $stmtBelum->execute($params);
-        $belumLunas = $stmtBelum->fetchAll(PDO::FETCH_ASSOC);
-
-        $sqlLunas = "
-        SELECT 
-            b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
-            b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
-            d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
-            b.PAIDST, b.PAIDDT
-        FROM scctbill b
-        LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
-        LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
-        WHERE $baseFilter AND b.PAIDST = '1'
-        ORDER BY b.PAIDDT DESC
-    ";
-        $stmtLunas = $this->db->prepare($sqlLunas);
-        $stmtLunas->execute($params);
-        $lunas = $stmtLunas->fetchAll(PDO::FETCH_ASSOC);
-
-        $groupData = function ($rows) {
-            $grouped = [];
-            foreach ($rows as $row) {
-                $key = $row['BILLCD'];
-                if (!isset($grouped[$key])) {
-                    $grouped[$key] = [
-                        'AA' => $row['AA'],
-                        'BILLCD' => $row['BILLCD'],
-                        'nama_tagihan' => $row['nama_tagihan'],
-                        'total_tagihan' => $row['total_tagihan'],
-                        'periode' => $row['periode'],
-                        'tahun_akademik_tagihan' => $row['tahun_akademik_tagihan'],
-                        'PAIDST' => $row['PAIDST'],
-                        'PAIDDT' => $row['PAIDDT'],
-                        'detail' => []
-                    ];
-                }
-                $grouped[$key]['detail'][] = [
-                    'nominal_detail' => $row['nominal_detail'],
-                    'akun_detail' => $row['akun_detail']
-                ];
-            }
-            return array_values($grouped);
-        };
-
-        $siswa['tahun_dipilih'] = $tahun_akademik ?: 'Semua Tahun Akademik';
-        $siswa['tagihan'] = $groupData($belumLunas);
-        $siswa['tagihan_lunas'] = $groupData($lunas);
-
-        return $siswa;
+        return $this->attachTagihan($siswa, $va_number, $tahun_akademik);
     }
 
     public function cekTagihanByVAPw($va_number, $password, $tahun_akademik = null)
     {
-        if (strpos($va_number, '751000') === 0) {
-            $num2nd = substr($va_number, 6);
-        } else {
-            $num2nd = $va_number;
-        }
+        $num2nd = $this->stripVa($va_number);
 
         $stmtUser = $this->db->prepare("SELECT userlogin, kunci FROM sm_user WHERE userlogin = :userlogin LIMIT 1");
         $stmtUser->execute([':userlogin' => $num2nd]);
@@ -199,6 +114,28 @@ class Tagihan
             return null;
         }
 
+        $siswa = $this->getSiswaByVa($va_number);
+        if (!$siswa) {
+            return null;
+        }
+
+        return $this->attachTagihan($siswa, $va_number, $tahun_akademik);
+    }
+
+    private function stripVa($va_number)
+    {
+        foreach (['751000', '797766'] as $prefix) {
+            if (strpos((string) $va_number, $prefix) === 0) {
+                return substr($va_number, strlen($prefix));
+            }
+        }
+
+        return $va_number;
+    }
+
+    private function getSiswaByVa($va_number)
+    {
+        $num2nd = $this->stripVa($va_number);
         $sql = "
         SELECT 
             c.CUSTID AS id,
@@ -219,10 +156,12 @@ class Tagihan
     ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':nocust' => $num2nd]);
-        $siswa = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$siswa) {
-            return null;
-        }
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    private function attachTagihan(array $siswa, $va_number, $tahun_akademik = null)
+    {
+        $num2nd = $siswa['no_cust'];
 
         $sqlSaldo = "SELECT SALDO FROM v_saldo_va WHERE NOCUST = :nocust LIMIT 1";
         $stmtSaldo = $this->db->prepare($sqlSaldo);
@@ -242,39 +181,38 @@ class Tagihan
             $baseFilter .= " AND b.BTA = :tahun_akademik";
         }
 
-        // === TAGIHAN BELUM LUNAS ===
-        $sqlBelum = "
-        SELECT 
+        $selectCols = "
             b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
             b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
             b.FTGLTagihan, b.FURUTAN,
+            COALESCE(m.isINSTALLMENT, 0) AS is_installment,
             d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
             b.PAIDST, b.PAIDDT
-        FROM scctbill b
-        LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
-        LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
-        WHERE $baseFilter 
-          AND b.PAIDST = '0' 
-          AND b.FSTSBolehBayar = '1'
+        ";
+        $joins = "
+            FROM scctbill b
+            LEFT JOIN mst_tagihan m ON m.kode = b.BILLCD
+            LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
+            LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
+        ";
+
+        $sqlBelum = "
+        SELECT $selectCols
+        $joins
+        WHERE $baseFilter AND b.PAIDST = '0' AND b.FSTSBolehBayar = '1'
         ORDER BY b.FURUTAN ASC, d.tahun ASC
     ";
         $stmtBelum = $this->db->prepare($sqlBelum);
         $params = [':custid' => $siswa['id']];
-        if ($tahun_akademik) $params[':tahun_akademik'] = $tahun_akademik;
+        if ($tahun_akademik) {
+            $params[':tahun_akademik'] = $tahun_akademik;
+        }
         $stmtBelum->execute($params);
         $belumLunas = $stmtBelum->fetchAll(PDO::FETCH_ASSOC);
 
-        // === TAGIHAN SUDAH LUNAS ===
         $sqlLunas = "
-        SELECT 
-            b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
-            b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
-            b.FTGLTagihan, b.FURUTAN,
-            d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
-            b.PAIDST, b.PAIDDT
-        FROM scctbill b
-        LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
-        LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
+        SELECT $selectCols
+        $joins
         WHERE $baseFilter AND b.PAIDST = '1'
         ORDER BY b.PAIDDT DESC, b.FURUTAN ASC
     ";
@@ -282,39 +220,73 @@ class Tagihan
         $stmtLunas->execute($params);
         $lunas = $stmtLunas->fetchAll(PDO::FETCH_ASSOC);
 
-        $groupData = function ($rows) {
-            $grouped = [];
-            foreach ($rows as $row) {
-                $key = $row['BILLCD'];
-                if (!isset($grouped[$key])) {
-                    $grouped[$key] = [
-                        'AA' => $row['AA'],
-                        'BILLCD' => $row['BILLCD'],
-                        'nama_tagihan' => $row['nama_tagihan'],
-                        'total_tagihan' => $row['total_tagihan'],
-                        'periode' => $row['periode'],
-                        'tahun_akademik_tagihan' => $row['tahun_akademik_tagihan'],
-                        'FTGLTagihan' => $row['FTGLTagihan'],
-                        'FURUTAN' => $row['FURUTAN'],
-                        'PAIDST' => $row['PAIDST'],
-                        'PAIDDT' => $row['PAIDDT'],
-                        'detail' => []
-                    ];
-                }
-                if (!empty($row['nominal_detail'])) {   // hindari null/empty
-                    $grouped[$key]['detail'][] = [
-                        'nominal_detail' => $row['nominal_detail'],
-                        'akun_detail' => $row['akun_detail']
-                    ];
-                }
-            }
-            return array_values($grouped);
-        };
+        $paidMap = $this->getPaidMap($siswa['id'], $num2nd);
 
         $siswa['tahun_dipilih'] = $tahun_akademik ?: 'Semua Tahun Akademik';
-        $siswa['tagihan'] = $groupData($belumLunas);        // belum lunas (urut FURUTAN ASC)
-        $siswa['tagihan_lunas'] = $groupData($lunas);       // lunas (urut terbaru dulu)
+        $siswa['tagihan'] = $this->groupData($belumLunas, $paidMap);
+        $siswa['tagihan_lunas'] = $this->groupData($lunas, $paidMap);
 
         return $siswa;
+    }
+
+    private function getPaidMap($custid, $nocust)
+    {
+        $sql = "SELECT ArrayTagihan, BILLAM FROM scctva WHERE CUSTID = :custid OR NOCUST = :nocust";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':custid' => $custid,
+            ':nocust' => $nocust,
+        ]);
+
+        $paid = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $aas = array_map('trim', explode(',', (string) $row['ArrayTagihan']));
+            $ams = array_map('trim', explode(',', (string) $row['BILLAM']));
+            foreach ($aas as $i => $aa) {
+                if ($aa === '') {
+                    continue;
+                }
+                $amt = isset($ams[$i]) ? (int) $ams[$i] : 0;
+                $paid[$aa] = (int) ($paid[$aa] ?? 0) + $amt;
+            }
+        }
+
+        return $paid;
+    }
+
+    private function groupData(array $rows, array $paidMap)
+    {
+        $grouped = [];
+        foreach ($rows as $row) {
+            $key = $row['AA'];
+            if (!isset($grouped[$key])) {
+                $total = (int) $row['total_tagihan'];
+                $sudah = (int) ($paidMap[$row['AA']] ?? $paidMap[(string) $row['AA']] ?? 0);
+                $grouped[$key] = [
+                    'AA' => $row['AA'],
+                    'BILLCD' => $row['BILLCD'],
+                    'nama_tagihan' => $row['nama_tagihan'],
+                    'total_tagihan' => $row['total_tagihan'],
+                    'periode' => $row['periode'],
+                    'tahun_akademik_tagihan' => $row['tahun_akademik_tagihan'],
+                    'FTGLTagihan' => $row['FTGLTagihan'] ?? null,
+                    'FURUTAN' => $row['FURUTAN'] ?? null,
+                    'is_installment' => (int) ($row['is_installment'] ?? 0) === 1 ? 1 : 0,
+                    'sudah_dibayar' => $sudah,
+                    'sisa_tagihan' => max(0, $total - $sudah),
+                    'PAIDST' => $row['PAIDST'],
+                    'PAIDDT' => $row['PAIDDT'],
+                    'detail' => []
+                ];
+            }
+            if (!empty($row['nominal_detail'])) {
+                $grouped[$key]['detail'][] = [
+                    'nominal_detail' => $row['nominal_detail'],
+                    'akun_detail' => $row['akun_detail']
+                ];
+            }
+        }
+
+        return array_values($grouped);
     }
 }

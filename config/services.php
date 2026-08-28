@@ -37,7 +37,7 @@ return [
     ],
 
     'tagihan_ws' => [
-        'url' => env('WS_TAGIHAN_URL', 'http://103.23.103.43/WEB_TAGIHAN_PROJECT/WS_TAGIHAN_AL_FAUZAN/index.php'),
+        'url' => env('WS_TAGIHAN_URL', 'http://103.23.103.43/WEB_TAGIHAN_PROJECT/WS_TAGIHAN_SIDOARJO_RAUDHATUL_JANNAH/index.php'),
     ],
 
 ];
