@@ -56,45 +56,7 @@ Route::post('/cek-tagihan', function (Request $request) {
     }
 })->name('cek-tagihan');
 
-Route::post('/generate-va', function (Request $request) {
-    try {
-        $response = Http::timeout(30)
-            ->withoutVerifying()
-            ->withHeaders([
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json'
-            ])
-            ->post(
-                config('services.tagihan_ws.url').'?path=generate-va',
-                $request->all()
-            );
-
-        \Log::info('WS generate-va response', [
-            'status' => $response->status(),
-            'body' => $response->body()
-        ]);
-
-        if ($response->successful()) {
-            return response()->json($response->json());
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Gagal generate VA'
-        ], 500);
-    } catch (\Exception $e) {
-        \Log::error('Error generate-va', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Terjadi kesalahan',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-})->name('generate-va');
+Route::post('/generate-va', [TagihanController::class, 'buatVA'])->name('generate-va');
 
 Route::post('/dua', [TagihanController::class, 'cek'])->name('tagihan.cek');
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TagihanController extends Controller
 {
@@ -114,6 +115,100 @@ class TagihanController extends Controller
     public function tagihanView()
     {
         return view('tagihan');
+    }
+
+    public function buatVA(Request $request)
+    {
+        $request->validate([
+            'custid' => 'required',
+            'nocust' => 'required|string',
+            'namacust' => 'required|string',
+            'array_tagihan' => 'required',
+            'total' => 'required|numeric|min:1',
+        ]);
+
+        $arrayTagihan = $request->input('array_tagihan');
+        if (is_array($arrayTagihan)) {
+            $arrayTagihan = implode(',', $arrayTagihan);
+        }
+
+        $ids = collect(explode(',', (string) $arrayTagihan))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tagihan yang dipilih tidak valid',
+            ], 422);
+        }
+
+        $payload = [
+            'custid' => $request->custid,
+            'nocust' => self::normalizeVa($request->nocust),
+            'namacust' => $request->namacust,
+            'array_tagihan' => $ids->implode(','),
+            'arrayTagihan' => $ids->implode(','),
+            'total' => (int) $request->total,
+            'billam' => (int) $request->total,
+        ];
+
+        try {
+            $response = Http::timeout(30)
+                ->withoutVerifying()
+                ->acceptJson()
+                ->asJson()
+                ->post($this->wsUrl('generate-va'), $payload);
+
+            Log::info('WS generate-va response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            $result = $response->json();
+            if (!is_array($result)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Gagal membuat nomor VA',
+                ], 500);
+            }
+
+            $va = $result['data']['va_number']
+                ?? $result['data']['NOVA']
+                ?? $result['data']['nova']
+                ?? $result['va_number']
+                ?? $result['nova']
+                ?? (is_string($result['data'] ?? null) ? $result['data'] : null);
+
+            if (!empty($result['status']) && $va) {
+                $result['data'] = array_merge(
+                    is_array($result['data'] ?? null) ? $result['data'] : [],
+                    ['va_number' => $va]
+                );
+
+                return response()->json($result);
+            }
+
+            if ($response->successful() && !empty($result['status'])) {
+                return response()->json($result);
+            }
+
+            return response()->json([
+                'status' => false,
+                'message' => $result['message'] ?? 'Gagal membuat nomor VA',
+            ], $response->successful() ? 200 : 500);
+        } catch (\Exception $e) {
+            Log::error('Error generate-va', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Terjadi kesalahan saat membuat nomor VA',
+            ], 500);
+        }
     }
 
     public function listTahunAkademik()
