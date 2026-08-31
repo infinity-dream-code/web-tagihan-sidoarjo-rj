@@ -22,75 +22,171 @@ class Tagihan
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    private function logVa($message, $data = [])
+    {
+        $line = '[' . date('Y-m-d H:i:s') . '] ' . $message . ' ' . json_encode($data, JSON_UNESCAPED_UNICODE) . PHP_EOL;
+        @file_put_contents(__DIR__ . '/va_debug.log', $line, FILE_APPEND);
+    }
+
+    /**
+     * Pola insert sama seperti WS Deliserdang (bukan generate VA unik).
+     * Untuk klien ini: NOVA = NOCUST, setiap bayar = baris baru.
+     *
+     * index.php generate-va — tambahkan log ini sebelum insert:
+     *   file_put_contents(__DIR__.'/va_debug.log', date('c').' INPUT '.json_encode($in).PHP_EOL, FILE_APPEND);
+     */
     public function insertVA($custid, $nocust, $namacust, $arrayTagihan, $billam)
     {
-        $ids = array_values(array_filter(array_map('intval', explode(',', str_replace(' ', '', (string) $arrayTagihan)))));
-        $amounts = is_array($billam)
-            ? array_map('intval', $billam)
-            : array_map('intval', explode(',', str_replace(' ', '', (string) $billam)));
+        $this->logVa('insertVA start', [
+            'custid' => $custid,
+            'nocust' => $nocust,
+            'namacust' => $namacust,
+            'arrayTagihan' => $arrayTagihan,
+            'billam' => $billam,
+            'billam_type' => gettype($billam),
+        ]);
 
-        if (empty($ids) || count($ids) !== count($amounts)) {
+        if ($custid === '' || $custid === null || $nocust === '' || $nocust === null) {
+            $this->logVa('insertVA abort empty custid/nocust');
             return false;
         }
 
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $sqlBills = "
-            SELECT b.AA, b.BILLAM, b.BILLCD, COALESCE(m.isINSTALLMENT, 0) AS is_installment
-            FROM scctbill b
-            LEFT JOIN mst_tagihan m ON m.kode = b.BILLCD
-            WHERE b.CUSTID = ? AND b.AA IN ($placeholders)
-        ";
-        $stmtBills = $this->db->prepare($sqlBills);
-        $stmtBills->execute(array_merge([(int) $custid], $ids));
-        $bills = [];
-        foreach ($stmtBills->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $bills[(int) $row['AA']] = $row;
+        $ids = array_values(array_filter(array_map('intval', explode(',', str_replace(' ', '', (string) $arrayTagihan))), function ($id) {
+            return $id > 0;
+        }));
+        if (empty($ids)) {
+            $this->logVa('insertVA abort empty ids', ['arrayTagihan' => $arrayTagihan]);
+            return false;
         }
 
-        $paidMap = $this->getPaidMap($custid, $nocust);
-        $validIds = [];
-        $validAmounts = [];
-
-        foreach ($ids as $i => $aa) {
-            if (!isset($bills[$aa])) {
-                return false;
-            }
-            $bill = $bills[$aa];
-            $sisa = max(0, (int) $bill['BILLAM'] - (int) ($paidMap[$aa] ?? 0));
-            $amt = (int) $amounts[$i];
-            $bolehCicil = (int) $bill['is_installment'] === 1;
-
-            if ($amt <= 0 || $amt > $sisa) {
-                return false;
-            }
-            if (!$bolehCicil && $amt !== $sisa) {
-                return false;
-            }
-
-            $validIds[] = $aa;
-            $validAmounts[] = $amt;
+        $amounts = $this->resolveBillam($ids, $billam);
+        $billtot = array_sum($amounts);
+        if ($billtot <= 0) {
+            $this->logVa('insertVA abort billtot', ['billam' => $billam, 'amounts' => $amounts]);
+            return false;
         }
 
-        $billamCsv = implode(',', $validAmounts);
-        $billtot = array_sum($validAmounts);
-        $tagihanAA = implode(',', $validIds);
+        $tagihanAA = implode(',', $ids);
+        $billamStore = implode(',', $amounts);
 
-        $insert = "
-            INSERT INTO scctva (CUSTID, NOCUST, NMCUST, NOVA, ArrayTagihan, BILLAM, BILLTOT, STATUS, CREATED_AT)
-            VALUES (:custid, :nocust, :namacust, :nova, :arrayTagihan, :billam, :billtot, 1, NOW())
-        ";
-        $stmtInsert = $this->db->prepare($insert);
-        $stmtInsert->execute([
+        $inserted = $this->doInsertVa($custid, $nocust, $namacust, $nocust, $tagihanAA, $billamStore, $billtot);
+        if ($inserted) {
+            $this->logVa('insertVA ok', ['nova' => $nocust, 'arrayTagihan' => $tagihanAA, 'billam' => $billamStore, 'billtot' => $billtot]);
+            return $nocust;
+        }
+
+        $this->logVa('insertVA failed, NOVA harus sama dengan NOCUST', ['nocust' => $nocust]);
+        return false;
+    }
+
+    private function resolveBillam(array $ids, $billam)
+    {
+        $fromArg = $this->parseAmounts($billam);
+        if (count($fromArg) === count($ids)) {
+            return $fromArg;
+        }
+
+        $raw = $this->readIncoming();
+        $fromField = $this->parseAmounts($raw['billam'] ?? '');
+        if (count($fromField) === count($ids)) {
+            return $fromField;
+        }
+
+        $items = $raw['items'] ?? [];
+        if (is_array($items) && count($items)) {
+            $byAa = [];
+            foreach ($items as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $aa = (int) ($item['AA'] ?? $item['aa'] ?? 0);
+                $amt = (int) ($item['amount'] ?? $item['billam'] ?? 0);
+                if ($aa > 0 && $amt > 0) {
+                    $byAa[$aa] = $amt;
+                }
+            }
+            $ordered = [];
+            foreach ($ids as $aa) {
+                $ordered[] = (int) ($byAa[$aa] ?? 0);
+            }
+            if (count(array_filter($ordered)) === count($ids)) {
+                return $ordered;
+            }
+        }
+
+        return $fromArg;
+    }
+
+    private function parseAmounts($billam)
+    {
+        if (is_array($billam)) {
+            return array_values(array_filter(array_map('intval', $billam), function ($n) {
+                return $n > 0;
+            }));
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', str_replace(' ', '', (string) $billam))), function ($n) {
+            return $n > 0;
+        }));
+    }
+
+    private function readIncoming()
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $json = json_decode((string) @file_get_contents('php://input'), true);
+        if (is_array($json) && count($json)) {
+            $cached = $json;
+            return $cached;
+        }
+
+        $cached = is_array($_POST) ? $_POST : [];
+        return $cached;
+    }
+
+    private function doInsertVa($custid, $nocust, $namacust, $nova, $arrayTagihan, $billam, $billtot)
+    {
+        $params = [
             ':custid' => $custid,
             ':nocust' => $nocust,
             ':namacust' => $namacust,
-            ':nova' => $nocust,
-            ':arrayTagihan' => $tagihanAA,
-            ':billam' => $billamCsv,
-            ':billtot' => $billtot,
-        ]);
+            ':nova' => $nova,
+            ':arrayTagihan' => $arrayTagihan,
+            ':billam' => $billam,
+        ];
 
-        return $nocust;
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO scctva (CUSTID, NOCUST, NMCUST, NOVA, ArrayTagihan, BILLAM, BILLTOT, STATUS, CREATED_AT)
+                VALUES (:custid, :nocust, :namacust, :nova, :arrayTagihan, :billam, :billtot, 1, NOW())
+            ");
+            $ok = $stmt->execute($params + [':billtot' => $billtot]);
+            if ($ok) {
+                return true;
+            }
+            $this->logVa('insert with BILLTOT returned false', ['error' => $stmt->errorInfo()]);
+        } catch (Exception $e) {
+            $this->logVa('insert with BILLTOT exception', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO scctva (CUSTID, NOCUST, NMCUST, NOVA, ArrayTagihan, BILLAM, STATUS, CREATED_AT)
+                VALUES (:custid, :nocust, :namacust, :nova, :arrayTagihan, :billam, 1, NOW())
+            ");
+            $ok = $stmt->execute($params);
+            if ($ok) {
+                return true;
+            }
+            $this->logVa('insert without BILLTOT returned false', ['error' => $stmt->errorInfo()]);
+        } catch (Exception $e) {
+            $this->logVa('insert without BILLTOT exception', ['error' => $e->getMessage()]);
+        }
+
+        return false;
     }
 
     public function cekTagihanByVA($va_number, $tahun_akademik = null)
@@ -184,14 +280,12 @@ class Tagihan
         $selectCols = "
             b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
             b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
-            b.FTGLTagihan, b.FURUTAN,
-            COALESCE(m.isINSTALLMENT, 0) AS is_installment,
+            b.FTGLTagihan, b.FURUTAN, b.isINSTALLABLE AS isINSTALLABLE,
             d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
             b.PAIDST, b.PAIDDT
         ";
         $joins = "
             FROM scctbill b
-            LEFT JOIN mst_tagihan m ON m.kode = b.BILLCD
             LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
             LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
         ";
@@ -271,7 +365,8 @@ class Tagihan
                     'tahun_akademik_tagihan' => $row['tahun_akademik_tagihan'],
                     'FTGLTagihan' => $row['FTGLTagihan'] ?? null,
                     'FURUTAN' => $row['FURUTAN'] ?? null,
-                    'is_installment' => (int) ($row['is_installment'] ?? 0) === 1 ? 1 : 0,
+                    'isINSTALLABLE' => $this->flagInstallable($row),
+                    'is_installment' => $this->flagInstallable($row),
                     'sudah_dibayar' => $sudah,
                     'sisa_tagihan' => max(0, $total - $sudah),
                     'PAIDST' => $row['PAIDST'],
@@ -288,5 +383,16 @@ class Tagihan
         }
 
         return array_values($grouped);
+    }
+
+    private function flagInstallable(array $row)
+    {
+        $value = $row['isINSTALLABLE']
+            ?? $row['isinstallable']
+            ?? $row['ISINSTALLABLE']
+            ?? $row['is_installment']
+            ?? 0;
+
+        return ((int) $value === 1) ? 1 : 0;
     }
 }

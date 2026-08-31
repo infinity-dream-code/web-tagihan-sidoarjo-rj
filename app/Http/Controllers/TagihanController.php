@@ -126,6 +126,34 @@ class TagihanController extends Controller
         return $result;
     }
 
+    private function extractVa($result, $fallback = null)
+    {
+        if (!is_array($result)) {
+            return $fallback;
+        }
+
+        $data = $result['data'] ?? null;
+        if (is_array($data)) {
+            foreach (['va_number', 'NOVA', 'nova', 'NOCUST', 'nocust'] as $key) {
+                if (array_key_exists($key, $data)) {
+                    return $data[$key];
+                }
+            }
+        }
+
+        if (is_string($data) || is_numeric($data)) {
+            return $data;
+        }
+
+        foreach (['va_number', 'nova', 'NOVA'] as $key) {
+            if (array_key_exists($key, $result)) {
+                return $result[$key];
+            }
+        }
+
+        return $fallback;
+    }
+
     public function tagihanView()
     {
         return view('tagihan');
@@ -197,17 +225,47 @@ class TagihanController extends Controller
             'arrayTagihan' => $idsCsv,
             'billam' => $billamCsv,
             'total' => $total,
-            'billam_total' => $total,
             'billtot' => $total,
+            'bank' => $request->input('bank', 'Muamalat'),
             'items' => $pairs,
         ];
 
         try {
+            $wsUrl = $this->wsUrl('generate-va');
+            Log::info('WS generate-va incoming', [
+                'url' => $wsUrl,
+                'request' => $request->all(),
+                'payload' => $payload,
+                'payload_types' => collect($payload)->map(fn ($v) => gettype($v) . ':' . json_encode($v))->all(),
+                'empty_fields' => collect($payload)->filter(fn ($v) => $v === null || $v === '' || $v === false)->keys()->values()->all(),
+            ]);
+
             $response = Http::timeout(30)
                 ->withoutVerifying()
                 ->acceptJson()
                 ->asJson()
-                ->post($this->wsUrl('generate-va'), $payload);
+                ->post($wsUrl, $payload);
+
+            Log::info('WS generate-va json', [
+                'http' => $response->status(),
+                'body' => $response->body(),
+                'json' => $response->json(),
+            ]);
+
+            if ($response->failed() || empty($response->json()['status'])) {
+                $formResponse = Http::timeout(30)
+                    ->withoutVerifying()
+                    ->asForm()
+                    ->post($wsUrl, $payload);
+                Log::info('WS generate-va form', [
+                    'http' => $formResponse->status(),
+                    'body' => $formResponse->body(),
+                    'json' => $formResponse->json(),
+                ]);
+                if ($formResponse->successful()) {
+                    $response = $formResponse;
+                }
+            }
 
             Log::info('WS generate-va response', [
                 'status' => $response->status(),
@@ -222,30 +280,39 @@ class TagihanController extends Controller
                 ], 500);
             }
 
-            $va = $result['data']['va_number']
-                ?? $result['data']['NOVA']
-                ?? $result['data']['nova']
-                ?? $result['va_number']
-                ?? $result['nova']
-                ?? (is_string($result['data'] ?? null) ? $result['data'] : null)
-                ?? $nocust;
+            $va = $this->extractVa($result, null);
+            $vaOk = $va !== false && $va !== null && $va !== '' && $va !== 'false';
 
-            if (!empty($result['status'])) {
+            if (!empty($result['status']) && $vaOk) {
                 $result['data'] = array_merge(
                     is_array($result['data'] ?? null) ? $result['data'] : [],
-                    ['va_number' => $va]
+                    ['va_number' => $nocust]
                 );
 
                 return response()->json($result);
             }
 
+            $wsMessage = (string) ($result['message'] ?? '');
+            $looksSuccess = stripos($wsMessage, 'berhasil') !== false;
+            $message = ($wsMessage !== '' && !$looksSuccess)
+                ? $wsMessage
+                : 'Gagal menyimpan ke scctva. insertVA return false. Kalau NIS '.$nocust.' sudah ada di kolom NOVA, lepas UNIQUE di NOVA supaya tiap bayar bisa baris baru dengan nomor yang sama.';
+
+            Log::warning('WS generate-va insert failed', [
+                'ws_status' => $result['status'] ?? null,
+                'ws_message' => $wsMessage,
+                'va' => $va,
+                'nocust' => $nocust,
+            ]);
+
             return response()->json([
                 'status' => false,
-                'message' => $result['message'] ?? 'Gagal membuat nomor VA',
-            ], $response->successful() ? 200 : 500);
+                'message' => $message,
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Error generate-va', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([

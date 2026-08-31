@@ -19,7 +19,9 @@
 })();
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
+@if(config('services.turnstile.enabled'))
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+@endif
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -144,20 +146,36 @@ html.dark .error-box p{color:#fca5a5}
 html.dark .pay-btn{background:#16a34a;color:#052e16}
 .pay-btn:disabled{opacity:.6;cursor:not-allowed}
 .bill-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text2)}
-.modal-box.pay-modal{max-width:640px}
-.pay-list{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:.85rem 0}
-.pay-item{display:flex;justify-content:space-between;gap:12px;padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px}
-.pay-item:last-child{border-bottom:none}
-.pay-item span{color:var(--text2)}
-.pay-item b{color:var(--text);text-align:right;white-space:nowrap}
-.pay-total{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--accent-soft);margin-bottom:1rem;font-size:14px;font-weight:700}
+.modal-box.pay-modal{max-width:960px}
+.pay-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 16px;margin-bottom:1.15rem;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)}
+.pay-info .pi-lbl{display:block;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.pay-info .pi-val{font-size:14px;font-weight:650;color:var(--text);line-height:1.35;word-break:break-word}
+.pay-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:.15rem 0 1rem;border:1px solid var(--border);border-radius:12px}
+.pay-tbl{width:100%;min-width:720px;border-collapse:collapse;table-layout:fixed}
+.pay-tbl th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap}
+.pay-tbl td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px;color:var(--text)}
+.pay-tbl tr:last-child td{border-bottom:none}
+.pay-tbl th:nth-child(1){width:22%}
+.pay-tbl th:nth-child(2),.pay-tbl th:nth-child(3){width:12%}
+.pay-tbl th:nth-child(4){width:9%;text-align:center}
+.pay-tbl th:nth-child(5),.pay-tbl th:nth-child(6){width:14%;text-align:right}
+.pay-tbl th:nth-child(7){width:17%;text-align:right}
+.pay-tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pay-tbl td.cicil{text-align:center}
+.pay-tbl td.bayar-col{text-align:right}
+.pay-cell.bayar-input{width:100%;max-width:140px;min-height:40px;padding:8px 10px;border-radius:8px;border:1px solid var(--accent);background:var(--surface);color:var(--text);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;margin-left:auto;display:block;-moz-appearance:textfield}
+.pay-cell.bayar-input::-webkit-outer-spin-button,.pay-cell.bayar-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.pay-cell.bayar-input[readonly],.pay-cell.bayar-input:disabled{opacity:.9;cursor:default;border-color:var(--border2);background:var(--surface2)}
+.pay-cell.bayar-input:focus{outline:none;box-shadow:0 0 0 4px rgba(21,128,61,.12)}
+.pay-total{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:12px;background:var(--accent-soft);margin-bottom:1rem;font-size:14px;font-weight:700}
 .pay-actions{display:flex;gap:10px}
-.btn-ghost{flex:1;min-height:46px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer}
+.btn-ghost{flex:1;min-height:46px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer}
 .btn-ghost:hover{background:var(--surface2)}
-.btn-pay-confirm{flex:1;min-height:46px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer}
-.btn-pay-confirm:hover{background:var(--accent-h)}
+.btn-pay-confirm{flex:1.4;min-height:46px;border-radius:12px;border:none;background:#16a34a;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.btn-pay-confirm:hover{background:#15803d}
 .btn-pay-confirm:disabled{opacity:.65;cursor:not-allowed}
-html.dark .btn-pay-confirm{color:#052e16}
+html.dark .btn-pay-confirm{color:#052e16;background:#4ade80}
+html.dark .btn-pay-confirm:hover{background:#22c55e}
 .va-box{text-align:center;padding:.35rem 0 .2rem}
 .va-box h4{margin:0 0 .55rem;font-size:15px;font-weight:700}
 .va-number{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.35rem;font-weight:700;letter-spacing:.04em;color:var(--accent);word-break:break-all;margin:.2rem 0 .7rem}
@@ -180,6 +198,7 @@ html.dark .badge-no-cicil{background:#431407;color:#fdba74}
 .card-list{display:flex}
 .select-all-mobile{display:flex}
 .pay-actions{flex-direction:column}
+.pay-info{grid-template-columns:1fr 1fr}
 }
 @media(max-width:520px){
 .wrap{padding-top:1rem}
@@ -238,6 +257,7 @@ h1{font-size:1.15rem}
           <option value="">Memuat data...</option>
         </select>
       </div>
+      @if(config('services.turnstile.enabled'))
       <div class="field">
         <label>Verifikasi keamanan <em>*</em></label>
         <div class="turnstile-area">
@@ -245,6 +265,7 @@ h1{font-size:1.15rem}
           <input type="hidden" name="cf_turnstile_response" id="cfToken">
         </div>
       </div>
+      @endif
       <button type="submit" name="submit" class="submit-btn">
         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Cek tagihan
@@ -329,7 +350,7 @@ h1{font-size:1.15rem}
             <tbody id="tagihanTableBody">
               @forelse($result['data']['tagihan'] as $i => $tagih)
               @php
-                $bolehCicil = (int)($tagih['is_installment'] ?? $tagih['isINSTALLMENT'] ?? 0) === 1;
+                $bolehCicil = (int)($tagih['isINSTALLABLE'] ?? $tagih['isinstallable'] ?? $tagih['is_installment'] ?? 0) === 1;
                 $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
                 $totalTagih = (int)($tagih['total_tagihan'] ?? 0);
                 $sisaTagih = (int)($tagih['sisa_tagihan'] ?? max(0, $totalTagih - $sudahBayar));
@@ -366,7 +387,7 @@ h1{font-size:1.15rem}
         <div class="card-list" id="tagihanCardList">
           @forelse($result['data']['tagihan'] as $i => $tagih)
           @php
-            $bolehCicil = (int)($tagih['is_installment'] ?? $tagih['isINSTALLMENT'] ?? 0) === 1;
+            $bolehCicil = (int)($tagih['isINSTALLABLE'] ?? $tagih['isinstallable'] ?? $tagih['is_installment'] ?? 0) === 1;
             $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
             $totalTagih = (int)($tagih['total_tagihan'] ?? 0);
             $sisaTagih = (int)($tagih['sisa_tagihan'] ?? max(0, $totalTagih - $sudahBayar));
@@ -508,7 +529,7 @@ h1{font-size:1.15rem}
 <div id="paymentModal" class="modal-bg">
   <div class="modal-box pay-modal">
     <div class="modal-head">
-      <h3>Konfirmasi pembayaran</h3>
+      <h3>Bayar Tagihan</h3>
       <button class="modal-x" onclick="closePaymentModal()" aria-label="Tutup" type="button">
         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
@@ -524,7 +545,8 @@ h1{font-size:1.15rem}
 
 <script>
 let currentTheme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme') === 'dark') ? 'dark' : 'light';
-let turnstileToken = null;
+let turnstileEnabled = @json((bool) config('services.turnstile.enabled'));
+let turnstileToken = turnstileEnabled ? null : 'bypass';
 let tagihanPage = 1, tagihanPerPageVal = 10, tagihanAll = false;
 let lunasPage = 1, lunasPerPageVal = 10, lunasAll = false;
 const preselectedYear = @json(old('academic_year', $academic_year ?? 'all'));
@@ -557,24 +579,32 @@ function toggleTheme() {
 }
 
 function initTurnstile() {
+  if (!turnstileEnabled) return;
   const w = document.getElementById('turnstile-widget');
+  if (!w) return;
   w.innerHTML = '';
   turnstileToken = null;
-  document.getElementById('cfToken').value = '';
+  const tokenEl = document.getElementById('cfToken');
+  if (tokenEl) tokenEl.value = '';
   if (typeof turnstile === 'undefined') { setTimeout(initTurnstile, 150); return; }
   turnstile.render('#turnstile-widget', {
     sitekey: @json(config('services.turnstile.site_key')),
     theme: currentTheme === 'dark' ? 'dark' : 'light',
     size: window.innerWidth < 420 ? 'compact' : 'normal',
     retry: 'auto',
-    callback: t => { turnstileToken = t; document.getElementById('cfToken').value = t; },
-    'error-callback': () => { turnstileToken = null; document.getElementById('cfToken').value = ''; },
-    'expired-callback': () => { turnstileToken = null; document.getElementById('cfToken').value = ''; }
+    callback: t => { turnstileToken = t; const el = document.getElementById('cfToken'); if (el) el.value = t; },
+    'error-callback': () => { turnstileToken = null; const el = document.getElementById('cfToken'); if (el) el.value = ''; },
+    'expired-callback': () => { turnstileToken = null; const el = document.getElementById('cfToken'); if (el) el.value = ''; }
   });
 }
 
 function resetTurnstile() {
-  if (typeof turnstile !== 'undefined') { document.getElementById('turnstile-widget').innerHTML = ''; setTimeout(initTurnstile, 100); }
+  if (!turnstileEnabled) return;
+  if (typeof turnstile !== 'undefined') {
+    const w = document.getElementById('turnstile-widget');
+    if (w) w.innerHTML = '';
+    setTimeout(initTurnstile, 100);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -713,7 +743,7 @@ window.addEventListener('click', e => {
 });
 
 document.getElementById('billForm').addEventListener('submit', e => {
-  if (!turnstileToken) { e.preventDefault(); alert('Selesaikan verifikasi keamanan terlebih dahulu!'); }
+  if (turnstileEnabled && !turnstileToken) { e.preventDefault(); alert('Selesaikan verifikasi keamanan terlebih dahulu!'); }
 });
 
 const tagihanAktif = @json(isset($result['data']['tagihan']) ? $result['data']['tagihan'] : []);
@@ -744,7 +774,7 @@ function billName(name) {
 }
 
 function isCicil(item) {
-  return String(item?.is_installment ?? item?.isINSTALLMENT ?? item?.isinstallable ?? 0) === '1';
+  return String(item?.isINSTALLABLE ?? item?.isinstallable ?? item?.is_installment ?? 0) === '1';
 }
 
 function sudahBayarOf(item) {
@@ -911,31 +941,53 @@ function showPaymentModal() {
   }
 
   const total = selected.reduce((s, i) => s + (parseInt(i.bayar, 10) || 0), 0);
-  let list = '';
+  let rows = '';
   selected.forEach(i => {
-    const cicilLabel = isCicil(i) ? 'Bisa dicicil' : 'Tidak dicicil';
+    const cicil = isCicil(i);
     const sisa = sisaTagihan(i);
-    const input = isCicil(i)
-      ? `<input type="number" class="pay-input bayar-input modal-bayar-input" data-index="${i._idx}" min="1" max="${sisa}" value="${i.bayar}" inputmode="numeric">`
-      : `<b>${formatRp(i.bayar)}</b>`;
-    list += `<div class="pay-item"><span>${billName(i.nama_tagihan)}<br><small>${esc(i.tahun_akademik_tagihan || siswaBayar.tahun_akademik || '-')} · ${cicilLabel} · sisa ${formatRp(sisa)}</small></span>${input}</div>`;
+    const sudah = sudahBayarOf(i);
+    const readonly = cicil ? '' : 'readonly';
+    rows += `<tr>
+      <td>${billName(i.nama_tagihan)}</td>
+      <td>${esc(i.tahun_akademik_tagihan || i.periode || siswaBayar.tahun_akademik || '-')}</td>
+      <td>${esc(i.periode || '-')}</td>
+      <td class="cicil"><span class="badge ${cicil ? 'badge-cicil' : 'badge-no-cicil'}">${cicil ? 'Ya' : 'Tidak'}</span></td>
+      <td class="num">${formatRp(i.total_tagihan)}</td>
+      <td class="num">${formatRp(sudah)}</td>
+      <td class="bayar-col"><input type="number" class="pay-cell bayar-input modal-bayar-input" data-index="${i._idx}" min="1" max="${sisa}" value="${i.bayar}" ${readonly} inputmode="numeric"></td>
+    </tr>`;
   });
 
   document.getElementById('paymentBody').innerHTML = `
-    <div class="student-grid" style="margin-bottom:.9rem">
-      <div class="sf"><label>Nama</label><p>${esc(siswaBayar.nama) || '-'}</p></div>
-      <div class="sf"><label>Kelas</label><p>${esc(siswaBayar.kelas) || '-'}</p></div>
-      <div class="sf"><label>NOVA</label><p>${esc(siswaBayar.va_number || siswaBayar.no_cust) || '-'}</p></div>
-      <div class="sf"><label>Item</label><p>${selected.length} tagihan</p></div>
+    <div class="pay-info">
+      <div><span class="pi-lbl">Nama</span><div class="pi-val">${esc(siswaBayar.nama) || '-'}</div></div>
+      <div><span class="pi-lbl">Kelas</span><div class="pi-val">${esc(siswaBayar.kelas) || '-'}</div></div>
+      <div><span class="pi-lbl">NIS</span><div class="pi-val">${esc(siswaBayar.no_cust || siswaBayar.num2nd) || '-'}</div></div>
+      <div><span class="pi-lbl">Nomor VA</span><div class="pi-val">${esc(siswaBayar.va_number || siswaBayar.no_cust) || '-'}</div></div>
     </div>
-    <div class="pay-list">${list}</div>
+    <div class="pay-tbl-wrap">
+      <table class="pay-tbl">
+        <thead>
+          <tr>
+            <th>Nama tagihan</th>
+            <th>Tahun aka</th>
+            <th>Periode</th>
+            <th>Cicil</th>
+            <th>Nominal</th>
+            <th>Sudah dibayar</th>
+            <th>Bayar</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
     <div class="pay-total"><span>Total pembayaran</span><span id="modalPayTotal">${formatRp(total)}</span></div>
     <div id="vaResult"></div>`;
 
   document.getElementById('paymentFoot').innerHTML = `
     <div class="pay-actions" id="payActions">
-      <button type="button" class="btn-ghost" onclick="closePaymentModal()">Batal</button>
-      <button type="button" class="btn-pay-confirm" id="btnBuatVa" onclick="prosesPembayaran()">Buat nomor VA</button>
+      <button type="button" class="btn-ghost" onclick="closePaymentModal()">Tutup</button>
+      <button type="button" class="btn-pay-confirm" id="btnBuatVa" onclick="prosesPembayaran()">+ Buat Nomor VA</button>
     </div>`;
 
   document.querySelectorAll('.modal-bayar-input').forEach(inp => {
@@ -1000,8 +1052,21 @@ async function prosesPembayaran() {
       })
     });
 
+    console.log('generate-va request', {
+      custid: siswaBayar.id,
+      nocust,
+      namacust: siswaBayar.nama,
+      array_tagihan: ids.join(','),
+      amounts,
+      total,
+      siswaBayar
+    });
+
     const data = await res.json();
-    const va = data?.data?.va_number || data?.va_number || nocust;
+    console.log('generate-va response', res.status, data);
+    const rawVa = data?.data?.va_number ?? data?.va_number;
+    const vaOk = rawVa !== false && rawVa !== null && rawVa !== undefined && String(rawVa) !== 'false' && String(rawVa).trim() !== '';
+    const va = (data?.status && vaOk) ? nocust : '';
 
     if (data?.status && va) {
       document.getElementById('vaResult').innerHTML = `
@@ -1010,7 +1075,7 @@ async function prosesPembayaran() {
           <div class="va-number" id="vaNumberText">${esc(va)}</div>
           <button type="button" class="btn-copy" onclick="copyVa()">Salin nomor VA</button>
           <p class="va-meta">Total: <b>${formatRp(total)}</b></p>
-          <p class="va-help">Bayar ke nomor VA di atas. Setiap pembayaran berikutnya akan menambah baris baru di data VA.</p>
+          <p class="va-help">Bayar ke nomor VA di atas.</p>
         </div>`;
       const actions = document.getElementById('payActions');
       if (actions) {
@@ -1018,11 +1083,11 @@ async function prosesPembayaran() {
       }
     } else {
       Swal.fire({ icon: 'error', title: 'Gagal membuat VA', text: data?.message || 'Silakan coba lagi.', ...swalTheme() });
-      if (btn) { btn.disabled = false; btn.textContent = 'Buat nomor VA'; }
+      if (btn) { btn.disabled = false; btn.textContent = '+ Buat Nomor VA'; }
     }
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'Terjadi kesalahan', text: 'Gagal memproses pembayaran. Coba beberapa saat lagi.', ...swalTheme() });
-    if (btn) { btn.disabled = false; btn.textContent = 'Buat nomor VA'; }
+    if (btn) { btn.disabled = false; btn.textContent = '+ Buat Nomor VA'; }
   }
 }
 
