@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\MultiAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -106,33 +105,7 @@ class TagihanController extends Controller
             ])->withInput($request->except('password'));
         }
 
-        $multiAccounts = collect();
-        try {
-            MultiAccountService::syncMemberAfterLogin(
-                $result['data'],
-                $request->no_cust,
-                $request->academic_year
-            );
-
-            $multiAccounts = MultiAccountService::listForNoCust(
-                $result['data']['no_cust'] ?? $request->no_cust,
-                self::normalizeVa($request->no_cust)
-            );
-        } catch (\Throwable $e) {
-            Log::warning('multi-akun sync after login failed', [
-                'error' => $e->getMessage(),
-            ]);
-            session([
-                'tagihan' => [
-                    'active_no_cust' => self::normalizeVa($request->no_cust),
-                    'va_display' => $request->no_cust,
-                    'academic_year' => $request->academic_year,
-                    'group_id' => null,
-                ],
-            ]);
-        }
-
-        return view('index3', compact('result', 'multiAccounts'))
+        return view('index3', compact('result'))
             ->with([
                 'va' => $request->no_cust,
                 'academic_year' => $request->academic_year

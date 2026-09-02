@@ -1,0 +1,48 @@
+{
+  "id": "/",
+  "name": "Cek & Bayar Tagihan - Sidoarjo Raudhatul Jannah",
+  "short_name": "Tagihan RJ",
+  "description": "Cek dan bayar tagihan siswa Sidoarjo Raudhatul Jannah",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0c1610",
+  "theme_color": "#14532d",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["finance", "education", "utilities"],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "/manifest.webmanifest"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

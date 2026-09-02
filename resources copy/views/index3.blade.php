@@ -5,16 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Cek &amp; Bayar Tagihan | Sidoarjo Raudhatul Jannah</title>
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<meta name="description" content="Cek dan bayar tagihan siswa Sidoarjo Raudhatul Jannah">
-<meta name="theme-color" content="#14532d">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Tagihan RJ">
-<link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-<link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/icon-192.png') }}">
 <link rel="icon" type="image/jpeg" href="{{ asset('icon-jannah.jpeg') }}">
-<link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
+<link rel="apple-touch-icon" href="{{ asset('icon-jannah.jpeg') }}">
+<meta name="theme-color" content="#14532d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,17 +17,6 @@
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
   } catch (e) {}
 })();
-window.__pwaDeferredPrompt = null;
-window.__pwaInstallReady = false;
-window.addEventListener('beforeinstallprompt', function (e) {
-  e.preventDefault();
-  window.__pwaDeferredPrompt = e;
-  window.__pwaInstallReady = true;
-  window.dispatchEvent(new Event('pwa-install-ready'));
-});
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
-}
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
 @if(config('services.turnstile.enabled'))
@@ -74,18 +56,6 @@ h1{font-size:1.35rem;font-weight:700;color:var(--text);line-height:1.25;margin:0
 .theme-btn{display:flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);font-size:13px;color:var(--text2);cursor:pointer;transition:background .15s,border .15s;flex-shrink:0}
 .theme-btn:hover{background:var(--surface2)}
 .theme-label{white-space:nowrap}
-.topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.install-btn{display:flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--border2);background:var(--accent-soft);font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;transition:background .15s,border .15s;flex-shrink:0}
-.install-btn.is-hidden{display:none !important}
-.install-btn:hover{background:var(--border)}
-.install-hero{text-align:center;padding:.35rem 0 .2rem}
-.install-hero img{width:72px;height:72px;border-radius:16px;object-fit:cover;margin:0 auto .9rem;display:block;background:#fff}
-.install-hero h4{margin:0 0 .45rem;font-size:1.05rem;font-weight:700;color:var(--text)}
-.install-hero p{margin:0;font-size:13px;color:var(--text2);line-height:1.5}
-.btn-install-now{width:100%;min-height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-install-now:hover{background:var(--accent-h)}
-.btn-install-now:disabled{opacity:.65;cursor:not-allowed}
-html.dark .btn-install-now{color:#052e16}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:1.35rem 1.2rem;margin-bottom:1rem;box-shadow:0 10px 28px rgba(19,38,26,.05)}
 .section-title{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:1.15rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)}
 .field{margin-bottom:1rem}
@@ -218,27 +188,6 @@ html.dark .btn-pay-confirm:hover{background:#22c55e}
 html.dark .badge-cicil{background:#052e16;color:#86efac}
 .badge-no-cicil{background:#fff7ed;color:#c2410c}
 html.dark .badge-no-cicil{background:#431407;color:#fdba74}
-.badge-active{background:#ecf8ef;color:#15803d}
-html.dark .badge-active{background:#052e16;color:#86efac}
-.badge-inactive{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
-.ma-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1.15rem}
-.ma-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);text-align:left;cursor:pointer;transition:border .15s,background .15s,box-shadow .15s;color:var(--text);font:inherit}
-.ma-item:hover:not(:disabled){border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(21,128,61,.1)}
-.ma-item.is-active{border-color:var(--accent);cursor:default;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
-.ma-item:disabled{opacity:1}
-.ma-item-main{min-width:0;flex:1}
-.ma-item-name{font-size:14px;font-weight:700;margin:0 0 2px;word-break:break-word}
-.ma-item-meta{font-size:12px;color:var(--text3);margin:0;word-break:break-word}
-.ma-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
-.ma-section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin:0 0 .75rem}
-.ma-error{display:none;margin:0 0 .85rem;padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px}
-html.dark .ma-error{background:#450a0a;border-color:#7f1d1d;color:#fca5a5}
-.ma-error.open{display:block}
-.ma-success{display:none;margin:0 0 .85rem;padding:10px 12px;border-radius:10px;background:#ecf8ef;border:1px solid #bbf7d0;color:#15803d;font-size:13px}
-html.dark .ma-success{background:#052e16;border-color:#14532d;color:#86efac}
-.ma-success.open{display:block}
-.siswa-head{display:flex;justify-content:space-between;align-items:center;gap:.65rem;margin-bottom:1.15rem;padding-bottom:.8rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.siswa-head .section-title{margin:0;padding:0;border:none}
 .bill-pay-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}
 .footer{text-align:center;font-size:12px;color:var(--text3);margin-top:1.5rem;padding-bottom:.5rem}
 .scroll-top{position:fixed;bottom:max(1.15rem,env(safe-area-inset-bottom));right:max(1rem,env(safe-area-inset-right));width:44px;height:44px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 20px rgba(19,38,26,.12);z-index:20}
@@ -256,7 +205,7 @@ html.dark .ma-success{background:#052e16;border-color:#14532d;color:#86efac}
 .brand-logo{height:42px;max-width:170px}
 h1{font-size:1.15rem}
 .theme-label{display:none}
-.theme-btn,.install-btn{padding:0;width:44px}
+.theme-btn{padding:0;width:44px}
 .card{padding:1.1rem .95rem;border-radius:16px}
 .student-grid{gap:.55rem}
 .sf{padding:10px}
@@ -278,16 +227,10 @@ h1{font-size:1.15rem}
         <h1>Cek &amp; bayar tagihan</h1>
       </div>
     </div>
-    <div class="topbar-actions">
-      <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" type="button" aria-label="Ubah tema">
-        <svg id="themeIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-        <span class="theme-label" id="themeLabel">Mode gelap</span>
-      </button>
-      <button class="install-btn" id="installBtn" type="button" aria-label="Install aplikasi" title="Install aplikasi">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span class="theme-label">Install</span>
-      </button>
-    </div>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" type="button" aria-label="Ubah tema">
+      <svg id="themeIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      <span class="theme-label" id="themeLabel">Mode gelap</span>
+    </button>
   </div>
 
   <div class="card">
@@ -365,12 +308,7 @@ h1{font-size:1.15rem}
   @if(isset($result))
     @if($result['status'])
       <div class="card" id="resultSection">
-        <div class="siswa-head">
-          <div class="section-title">Data siswa</div>
-          <div class="tbl-controls">
-            <button type="button" class="btn-showall" id="btnMultiAkun" onclick="openMultiAkunModal()">Multi akun</button>
-          </div>
-        </div>
+        <div class="section-title">Data siswa</div>
         <div class="student-grid">
           <div class="sf"><label>Nama</label><p>{{ $result['data']['nama'] ?? '-' }}</p></div>
           <div class="sf"><label>Kelas</label><p>{{ $result['data']['kelas'] ?? '-' }}</p></div>
@@ -601,121 +539,6 @@ h1{font-size:1.15rem}
   </div>
 </div>
 
-<div id="installModal" class="modal-bg">
-  <div class="modal-box" style="max-width:420px">
-    <div class="modal-head">
-      <h3>Install aplikasi</h3>
-      <button class="modal-x" onclick="closeInstallModal()" aria-label="Tutup" type="button">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="install-hero">
-        <img src="{{ asset('icons/icon-192.png') }}" alt="Tagihan RJ">
-        <h4>Tagihan RJ</h4>
-        <p id="installModalText">Pasang aplikasi ke perangkat Anda agar lebih cepat dibuka dan mudah diakses.</p>
-      </div>
-    </div>
-    <div class="modal-foot" style="display:flex;flex-direction:column;gap:8px">
-      <button type="button" class="btn-install-now" id="btnInstallNow">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Install sekarang
-      </button>
-      <button class="btn-close-full" onclick="closeInstallModal()" type="button">Nanti saja</button>
-    </div>
-  </div>
-</div>
-
-@if(isset($result) && !empty($result['status']))
-@php
-  $activeNoCust = \App\Http\Controllers\TagihanController::normalizeVa($result['data']['no_cust'] ?? ($va ?? ''));
-  $multiAccounts = collect($multiAccounts ?? []);
-  if ($multiAccounts->isEmpty()) {
-    $multiAccounts = collect([[
-      'no_cust' => $activeNoCust,
-      'va_display' => $va ?? ($result['data']['va_number'] ?? $activeNoCust),
-      'nama' => $result['data']['nama'] ?? '-',
-      'kelas' => $result['data']['kelas'] ?? '-',
-      'jenjang' => $result['data']['jenjang'] ?? '-',
-      'is_active' => true,
-    ]]);
-  }
-@endphp
-<div id="multiAkunModal" class="modal-bg">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3>Multi akun</h3>
-      <button class="modal-x" onclick="closeMultiAkunModal()" aria-label="Tutup" type="button">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <p class="ma-section-label">Daftar akun</p>
-      <div id="maError" class="ma-error"></div>
-      <div id="maSuccess" class="ma-success"></div>
-      <div class="ma-list" id="maList">
-        @foreach($multiAccounts as $acc)
-          @php $isActive = !empty($acc['is_active']); @endphp
-          <button
-            type="button"
-            class="ma-item {{ $isActive ? 'is-active' : '' }}"
-            data-no-cust="{{ $acc['no_cust'] ?? '' }}"
-            @if($isActive) disabled aria-current="true" @endif
-          >
-            <div class="ma-item-main">
-              <p class="ma-item-name">{{ $acc['nama'] ?? '-' }}</p>
-              <p class="ma-item-meta">{{ $acc['kelas'] ?? '-' }} · VA {{ $acc['va_display'] ?? ($acc['no_cust'] ?? '-') }}</p>
-            </div>
-            <div class="ma-item-right">
-              <span class="badge {{ $isActive ? 'badge-active' : 'badge-inactive' }}">{{ $isActive ? 'Aktif' : 'Nonaktif' }}</span>
-            </div>
-          </button>
-        @endforeach
-      </div>
-
-      <div class="divider" style="margin:1rem 0"></div>
-      <p class="ma-section-label">Tambah akun</p>
-      <form id="multiAkunForm" onsubmit="return submitTambahMultiAkun(event)">
-        @csrf
-        <div class="field">
-          <label>Nomor virtual account <em>*</em></label>
-          <input type="text" name="no_cust" id="maNoCust" placeholder="797766xxx" required autocomplete="username">
-        </div>
-        <div class="field">
-          <label>Password <em>*</em></label>
-          <div class="pw-wrap">
-            <input type="password" name="password" id="maPassword" placeholder="Masukkan password" required autocomplete="current-password">
-            <button type="button" class="pw-toggle" id="maTogglePassword" aria-label="Tampilkan password">
-              <svg id="maIconEye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <svg id="maIconEyeOff" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" hidden><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="field">
-          <label>Tahun akademik <em>*</em></label>
-          <select name="academic_year" id="maAcademicYear" required>
-            <option value="all">Semua tahun akademik</option>
-          </select>
-        </div>
-        <button type="submit" class="submit-btn" id="maSubmitBtn">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-          Tambah akun
-        </button>
-      </form>
-    </div>
-    <div class="modal-foot">
-      <button class="btn-close-full" onclick="closeMultiAkunModal()" type="button">Tutup</button>
-    </div>
-  </div>
-</div>
-
-<form id="multiAkunSwitchForm" method="POST" action="{{ route('multi-akun.switch') }}" style="display:none">
-  @csrf
-  <input type="hidden" name="no_cust" id="maSwitchNoCust">
-  <input type="hidden" name="academic_year" id="maSwitchYear" value="{{ $academic_year ?? 'all' }}">
-</form>
-@endif
-
 <button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll ke atas" type="button">
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
 </button>
@@ -917,8 +740,6 @@ function closeDetailModal() {
 window.addEventListener('click', e => {
   if (e.target.id === 'detailModal') closeDetailModal();
   if (e.target.id === 'paymentModal') closePaymentModal();
-  if (e.target.id === 'multiAkunModal') closeMultiAkunModal();
-  if (e.target.id === 'installModal') closeInstallModal();
 });
 
 document.getElementById('billForm').addEventListener('submit', e => {
@@ -938,205 +759,7 @@ const siswaBayar = {
   saldo: @json($result['data']['saldo'] ?? 0)
 };
 const generateVaUrl = @json(route('generate-va'));
-const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
-let maYearsLoaded = false;
-
-function openMultiAkunModal() {
-  const modal = document.getElementById('multiAkunModal');
-  if (!modal) return;
-  clearMaMessages();
-  modal.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  loadMaAcademicYears();
-}
-
-function closeMultiAkunModal() {
-  const modal = document.getElementById('multiAkunModal');
-  if (!modal) return;
-  modal.classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-function clearMaMessages() {
-  const err = document.getElementById('maError');
-  const ok = document.getElementById('maSuccess');
-  if (err) { err.textContent = ''; err.classList.remove('open'); }
-  if (ok) { ok.textContent = ''; ok.classList.remove('open'); }
-}
-
-function showMaError(msg) {
-  const err = document.getElementById('maError');
-  const ok = document.getElementById('maSuccess');
-  if (ok) ok.classList.remove('open');
-  if (!err) return;
-  err.textContent = msg || 'Terjadi kesalahan';
-  err.classList.add('open');
-}
-
-function showMaSuccess(msg) {
-  const err = document.getElementById('maError');
-  const ok = document.getElementById('maSuccess');
-  if (err) err.classList.remove('open');
-  if (!ok) return;
-  ok.textContent = msg || 'Berhasil';
-  ok.classList.add('open');
-}
-
-function loadMaAcademicYears() {
-  const s = document.getElementById('maAcademicYear');
-  if (!s || maYearsLoaded) {
-    if (s && !maYearsLoaded) s.value = preselectedYear || 'all';
-    return;
-  }
-  fetch('/list-tahun-akademik')
-    .then(r => r.json())
-    .then(data => {
-      s.innerHTML = '';
-      const def = document.createElement('option');
-      def.value = 'all';
-      def.textContent = 'Semua tahun akademik';
-      s.appendChild(def);
-      if (data.status && data.data && data.data.length) {
-        data.data.forEach(item => {
-          const o = document.createElement('option');
-          o.value = item.thn_aka;
-          o.textContent = item.thn_aka;
-          s.appendChild(o);
-        });
-      }
-      const match = Array.from(s.options).find(o => o.value === preselectedYear);
-      s.value = match ? preselectedYear : 'all';
-      maYearsLoaded = true;
-    })
-    .catch(() => {
-      s.innerHTML = '<option value="all">Semua tahun akademik</option>';
-    });
-}
-
-function renderMultiAkunList(accounts) {
-  const list = document.getElementById('maList');
-  if (!list) return;
-  multiAkunAccounts = Array.isArray(accounts) ? accounts : [];
-  if (!multiAkunAccounts.length) {
-    list.innerHTML = '<div class="empty-note">Belum ada akun terhubung</div>';
-    return;
-  }
-  list.innerHTML = multiAkunAccounts.map(acc => {
-    const active = !!acc.is_active;
-    const nama = esc(acc.nama || '-');
-    const kelas = esc(acc.kelas || '-');
-    const va = esc(acc.va_display || acc.no_cust || '-');
-    const noCust = esc(String(acc.no_cust || ''));
-    return `
-      <button type="button" class="ma-item ${active ? 'is-active' : ''}" data-no-cust="${noCust}" ${active ? 'disabled aria-current="true"' : ''}>
-        <div class="ma-item-main">
-          <p class="ma-item-name">${nama}</p>
-          <p class="ma-item-meta">${kelas} · VA ${va}</p>
-        </div>
-        <div class="ma-item-right">
-          <span class="badge ${active ? 'badge-active' : 'badge-inactive'}">${active ? 'Aktif' : 'Nonaktif'}</span>
-        </div>
-      </button>`;
-  }).join('');
-}
-
-function switchMultiAkun(noCust) {
-  const form = document.getElementById('multiAkunSwitchForm');
-  const input = document.getElementById('maSwitchNoCust');
-  const year = document.getElementById('maSwitchYear');
-  if (!form || !input || !noCust) {
-    showMaError('Form pindah akun tidak tersedia. Silakan cek tagihan ulang.');
-    return;
-  }
-  input.value = noCust;
-  if (year) year.value = (document.getElementById('maAcademicYear')?.value) || preselectedYear || 'all';
-  if (typeof Swal !== 'undefined') {
-    Swal.fire({
-      title: 'Beralih akun...',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-  }
-  form.submit();
-}
-
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('#maList .ma-item');
-  if (!btn || btn.disabled || btn.classList.contains('is-active')) return;
-  const noCust = btn.getAttribute('data-no-cust');
-  if (!noCust) return;
-  e.preventDefault();
-  switchMultiAkun(noCust);
-});
-
-async function submitTambahMultiAkun(e) {
-  e.preventDefault();
-  clearMaMessages();
-  const btn = document.getElementById('maSubmitBtn');
-  const noCust = document.getElementById('maNoCust')?.value?.trim();
-  const password = document.getElementById('maPassword')?.value || '';
-  const academicYear = document.getElementById('maAcademicYear')?.value || 'all';
-  if (!noCust || !password) {
-    showMaError('Lengkapi VA dan password');
-    return false;
-  }
-  if (btn) {
-    btn.disabled = true;
-    btn.style.opacity = '.7';
-  }
-  try {
-    const res = await fetch(multiAkunTambahUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify({
-        no_cust: noCust,
-        password: password,
-        academic_year: academicYear
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.status) {
-      showMaError(data.message || 'Gagal menambahkan akun');
-      return false;
-    }
-    renderMultiAkunList(data.data?.accounts || []);
-    document.getElementById('maNoCust').value = '';
-    document.getElementById('maPassword').value = '';
-    showMaSuccess(data.message || 'Akun berhasil ditambahkan');
-  } catch (err) {
-    showMaError('Terjadi kesalahan jaringan');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.style.opacity = '';
-    }
-  }
-  return false;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const toggleMaPw = document.getElementById('maTogglePassword');
-  if (toggleMaPw) {
-    toggleMaPw.addEventListener('click', () => {
-      const field = document.getElementById('maPassword');
-      const eye = document.getElementById('maIconEye');
-      const eyeOff = document.getElementById('maIconEyeOff');
-      if (!field) return;
-      const show = field.getAttribute('type') === 'password';
-      field.setAttribute('type', show ? 'text' : 'password');
-      toggleMaPw.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
-      if (eye) eye.hidden = show;
-      if (eyeOff) eyeOff.hidden = !show;
-    });
-  }
-});
 
 function formatRp(n) {
   return 'Rp ' + (parseInt(n, 10) || 0).toLocaleString('id-ID');
@@ -1488,218 +1111,6 @@ function fallbackCopy(va, done) {
   t.remove();
   done();
 }
-
-/* PWA */
-const installBtn = document.getElementById('installBtn');
-const btnInstallNow = document.getElementById('btnInstallNow');
-const installModalText = document.getElementById('installModalText');
-const PWA_INSTALLED_KEY = 'tagihan_rj_pwa_installed';
-
-function isStandalonePwa() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-}
-
-function markPwaInstalled() {
-  try { localStorage.setItem(PWA_INSTALLED_KEY, '1'); } catch (e) {}
-  window.__pwaAlreadyInstalled = true;
-}
-
-function isPwaMarkedInstalled() {
-  if (window.__pwaAlreadyInstalled) return true;
-  try { return localStorage.getItem(PWA_INSTALLED_KEY) === '1'; } catch (e) { return false; }
-}
-
-function setInstallBtnInstalledUi() {
-  if (!installBtn) return;
-  installBtn.classList.remove('is-hidden');
-  installBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg><span class="theme-label">Buka app</span>';
-  installBtn.title = 'Aplikasi sudah terpasang';
-  installBtn.setAttribute('aria-label', 'Buka aplikasi');
-  installBtn.dataset.state = 'installed';
-}
-
-function setInstallBtnDefaultUi() {
-  if (!installBtn) return;
-  installBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg><span class="theme-label">Install</span>';
-  installBtn.title = 'Install aplikasi';
-  installBtn.setAttribute('aria-label', 'Install aplikasi');
-  installBtn.dataset.state = 'install';
-}
-
-function showAlreadyInstalledModal() {
-  if (installModalText) {
-    installModalText.innerHTML = 'Aplikasi <b>sudah terpasang</b>. Di Chrome, klik tombol biru <b>Buka di aplikasi</b> di bilah alamat (kanan atas) untuk membukanya.';
-  }
-  if (btnInstallNow) {
-    btnInstallNow.disabled = false;
-    btnInstallNow.dataset.mode = 'close';
-    btnInstallNow.textContent = 'Mengerti';
-  }
-}
-
-function openInstallModal() {
-  const modal = document.getElementById('installModal');
-  if (!modal) return;
-  syncInstallModalState();
-  modal.classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeInstallModal() {
-  const modal = document.getElementById('installModal');
-  if (!modal) return;
-  modal.classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-function syncInstallModalState() {
-  if (!btnInstallNow) return;
-  btnInstallNow.dataset.mode = 'install';
-  if (isStandalonePwa()) {
-    markPwaInstalled();
-    if (installModalText) installModalText.textContent = 'Anda sudah membuka aplikasi dalam mode terpasang.';
-    btnInstallNow.disabled = false;
-    btnInstallNow.dataset.mode = 'close';
-    btnInstallNow.textContent = 'Tutup';
-    return;
-  }
-  if (isPwaMarkedInstalled() && !window.__pwaDeferredPrompt) {
-    showAlreadyInstalledModal();
-    setInstallBtnInstalledUi();
-    return;
-  }
-  if (window.__pwaDeferredPrompt || window.__pwaInstallReady) {
-    if (installModalText) installModalText.textContent = 'Pasang aplikasi ke perangkat Anda agar lebih cepat dibuka dan mudah diakses.';
-    btnInstallNow.disabled = false;
-    btnInstallNow.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Install sekarang';
-  } else {
-    if (installModalText) installModalText.textContent = 'Menyiapkan installer...';
-    btnInstallNow.disabled = true;
-    btnInstallNow.textContent = 'Menyiapkan...';
-  }
-}
-
-async function runPwaInstall() {
-  const promptEvent = window.__pwaDeferredPrompt;
-  if (!promptEvent) {
-    syncInstallModalState();
-    return false;
-  }
-  if (btnInstallNow) {
-    btnInstallNow.disabled = true;
-    btnInstallNow.textContent = 'Menginstall...';
-  }
-  try {
-    promptEvent.prompt();
-    const choice = await promptEvent.userChoice;
-    window.__pwaDeferredPrompt = null;
-    window.__pwaInstallReady = false;
-    if (choice && choice.outcome === 'accepted') {
-      markPwaInstalled();
-      closeInstallModal();
-      setInstallBtnInstalledUi();
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'success',
-          title: 'Berhasil',
-          text: 'Aplikasi sedang diinstall.',
-          timer: 1800,
-          showConfirmButton: false,
-          ...swalTheme()
-        });
-      }
-      return true;
-    }
-    syncInstallModalState();
-    return false;
-  } catch (err) {
-    syncInstallModalState();
-    return false;
-  }
-}
-
-window.addEventListener('pwa-install-ready', () => {
-  try { localStorage.removeItem(PWA_INSTALLED_KEY); } catch (e) {}
-  window.__pwaAlreadyInstalled = false;
-  setInstallBtnDefaultUi();
-  syncInstallModalState();
-});
-
-window.addEventListener('appinstalled', () => {
-  window.__pwaDeferredPrompt = null;
-  window.__pwaInstallReady = false;
-  markPwaInstalled();
-  setInstallBtnInstalledUi();
-  closeInstallModal();
-});
-
-if (installBtn) {
-  installBtn.addEventListener('click', () => {
-    openInstallModal();
-
-    // Sudah terpasang: cukup arahkan ke tombol Chrome "Buka di aplikasi"
-    if (isPwaMarkedInstalled() && !window.__pwaDeferredPrompt) {
-      showAlreadyInstalledModal();
-      return;
-    }
-
-    if (window.__pwaDeferredPrompt) {
-      syncInstallModalState();
-      return;
-    }
-
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries += 1;
-      if (window.__pwaDeferredPrompt) {
-        syncInstallModalState();
-        clearInterval(timer);
-        return;
-      }
-      if (tries >= 16) {
-        clearInterval(timer);
-        // Tidak ada event install = biasanya app sudah terpasang (Chrome tampil "Buka di aplikasi")
-        markPwaInstalled();
-        setInstallBtnInstalledUi();
-        showAlreadyInstalledModal();
-      } else {
-        syncInstallModalState();
-      }
-    }, 250);
-  });
-}
-
-if (btnInstallNow) {
-  btnInstallNow.addEventListener('click', () => {
-    if (btnInstallNow.dataset.mode === 'close') {
-      closeInstallModal();
-      return;
-    }
-    if (btnInstallNow.dataset.mode === 'reload') {
-      location.reload();
-      return;
-    }
-    runPwaInstall();
-  });
-}
-
-if (isStandalonePwa()) {
-  markPwaInstalled();
-  setInstallBtnInstalledUi();
-}
-if (isPwaMarkedInstalled() && !window.__pwaDeferredPrompt) {
-  setInstallBtnInstalledUi();
-}
-if (navigator.getInstalledRelatedApps) {
-  navigator.getInstalledRelatedApps().then((apps) => {
-    if (apps && apps.length) {
-      markPwaInstalled();
-      setInstallBtnInstalledUi();
-    }
-  }).catch(() => {});
-}
-syncInstallModalState();
 </script>
 </body>
 </html>

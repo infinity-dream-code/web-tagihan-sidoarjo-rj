@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TagihanController;
-use App\Http\Controllers\MultiAccountController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
@@ -70,9 +69,6 @@ Route::post('/generate-va', [TagihanController::class, 'buatVA'])->name('generat
 Route::post('/dua', [TagihanController::class, 'cek'])->name('tagihan.cek');
 
 Route::post('/', [TagihanController::class, 'cek2'])->name('tagihan.cek2');
-
-Route::post('/multi-akun/tambah', [MultiAccountController::class, 'tambah'])->name('multi-akun.tambah');
-Route::post('/multi-akun/switch', [MultiAccountController::class, 'switch'])->name('multi-akun.switch');
 
 Route::get('/tagihan/view', [TagihanController::class, 'tagihanView'])->name('tagihan.view');
 
