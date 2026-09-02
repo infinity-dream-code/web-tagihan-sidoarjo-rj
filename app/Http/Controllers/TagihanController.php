@@ -24,7 +24,7 @@ class TagihanController extends Controller
     {
         $va = preg_replace('/\s+/', '', (string) $va);
 
-        if (preg_match('/^(797766|751000)(\d+)$/', $va, $m)) {
+        if (preg_match('/^(757777|797766|751000)(\d+)$/', $va, $m)) {
             $va = $m[2];
         }
 
@@ -37,11 +37,11 @@ class TagihanController extends Controller
     {
         $n = self::normalizeVa($nocust);
 
-        if ($n === '') {
+        if ($n === '' || $n === '-') {
             return '-';
         }
 
-        return $n;
+        return '757777'.$n;
     }
 
     public function cek(Request $request)

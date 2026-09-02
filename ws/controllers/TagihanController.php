@@ -230,4 +230,37 @@ public function getTahunAkademik() {
         }
     }
 
+    /**
+     * Hapus akun dari grup multi akun.
+     * Body JSON: {
+     *   "active_va": "...",
+     *   "target_va": "..."
+     * }
+     */
+    public function multiAkunHapus()
+    {
+        $input = $this->readJsonInput();
+        $activeVa = $input['active_va'] ?? null;
+        $targetVa = $input['target_va'] ?? $input['va'] ?? $input['no_cust'] ?? null;
+
+        if (empty($activeVa) || empty($targetVa)) {
+            jsonResponse(false, 'active_va dan target_va wajib diisi');
+            return;
+        }
+
+        try {
+            $result = $this->multiAkun->removeMember($activeVa, $targetVa);
+            jsonResponse(true, 'Akun berhasil dihapus dari multi akun', $result);
+        } catch (InvalidArgumentException $e) {
+            jsonResponse(false, $e->getMessage());
+        } catch (Exception $e) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'multi_account_') !== false || stripos($msg, "doesn't exist") !== false) {
+                jsonResponse(false, 'Tabel multi akun belum ada di database WS. Jalankan ws/sql/multi_account_tables.sql');
+                return;
+            }
+            jsonResponse(false, 'Gagal menghapus multi akun: ' . $msg);
+        }
+    }
+
 }

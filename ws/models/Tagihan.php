@@ -220,7 +220,7 @@ class Tagihan
 
     private function stripVa($va_number)
     {
-        foreach (['751000', '797766'] as $prefix) {
+        foreach (['757777', '751000', '797766'] as $prefix) {
             if (strpos((string) $va_number, $prefix) === 0) {
                 return substr($va_number, strlen($prefix));
             }
@@ -325,7 +325,7 @@ class Tagihan
 
     private function getPaidMap($custid, $nocust)
     {
-        $sql = "SELECT ArrayTagihan, BILLAM FROM scctva WHERE CUSTID = :custid OR NOCUST = :nocust";
+        $sql = "SELECT ArrayTagihan, BILLAM FROM scctva WHERE CUSTID = :custid OR NOCUST = :nocust AND STATUS = 1";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':custid' => $custid,

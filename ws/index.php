@@ -48,6 +48,11 @@ switch ($path) {
         $controller->multiAkunSwitch();
         break;
 
+    case 'multi-akun-hapus':
+        $controller = new TagihanController();
+        $controller->multiAkunHapus();
+        break;
+
     default:
         header('Content-Type: application/json');
         echo json_encode(['status' => false, 'message' => 'Endpoint tidak ditemukan']);

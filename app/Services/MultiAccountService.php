@@ -30,10 +30,29 @@ class MultiAccountService
                 ->post(self::wsUrl($path), $payload);
 
             $json = $response->json();
+            if (is_array($json)) {
+                return $json;
+            }
 
-            return is_array($json) ? $json : [
+            $body = (string) $response->body();
+            Log::warning('multi-akun WS non-json', [
+                'path' => $path,
+                'http' => $response->status(),
+                'body' => mb_substr($body, 0, 500),
+            ]);
+
+            $message = 'Response WS tidak valid';
+            if (stripos($body, 'Fatal error') !== false || stripos($body, 'Call to undefined method') !== false) {
+                $message = 'File WS di server belum lengkap. Upload ulang ws/controllers/TagihanController.php dan ws/models/MultiAkun.php';
+            } elseif (stripos($body, 'Endpoint tidak ditemukan') !== false) {
+                $message = 'Endpoint multi akun belum tersedia di WS server. Upload ulang ws/index.php';
+            } elseif (trim($body) === '') {
+                $message = 'WS tidak mengembalikan data. Periksa koneksi WS_TAGIHAN_URL';
+            }
+
+            return [
                 'status' => false,
-                'message' => 'Response WS tidak valid',
+                'message' => $message,
             ];
         } catch (\Throwable $e) {
             Log::error('multi-akun WS call failed', [
@@ -137,6 +156,35 @@ class MultiAccountService
             'accounts' => $accounts,
             'va_display' => $data['va_number'] ?? $data['no_cust'] ?? $targetVa,
             'group_id' => $groupId,
+        ];
+    }
+
+    /**
+     * @return array{status:bool,message?:string,group_id?:int|null,members?:Collection,active_no_cust?:string}
+     */
+    public static function hapusViaWs(string $activeVa, string $targetVa): array
+    {
+        $result = self::postWs('multi-akun-hapus', [
+            'active_va' => TagihanController::normalizeVa($activeVa),
+            'target_va' => TagihanController::normalizeVa($targetVa),
+        ]);
+
+        if (empty($result['status'])) {
+            return [
+                'status' => false,
+                'message' => $result['message'] ?? 'Gagal menghapus akun dari multi akun',
+            ];
+        }
+
+        $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+
+        return [
+            'status' => true,
+            'message' => $result['message'] ?? 'Akun berhasil dihapus dari multi akun',
+            'group_id' => $data['group_id'] ?? null,
+            'members' => collect($data['accounts'] ?? []),
+            'active_no_cust' => $data['active_no_cust'] ?? TagihanController::normalizeVa($activeVa),
+            'removed_no_cust' => $data['removed_no_cust'] ?? TagihanController::normalizeVa($targetVa),
         ];
     }
 

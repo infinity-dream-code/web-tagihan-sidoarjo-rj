@@ -131,6 +131,52 @@ class MultiAccountController extends Controller
         ]);
     }
 
+    public function hapus(Request $request)
+    {
+        $request->validate([
+            'no_cust' => 'required|string',
+        ]);
+
+        $session = $this->requireActiveSession();
+        if (!$session) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Sesi akun aktif tidak ditemukan. Silakan cek tagihan ulang.',
+            ], 401);
+        }
+
+        $activeNoCust = $session['active_no_cust'];
+        $activeVaDisplay = $session['va_display'] ?? $activeNoCust;
+        $activeYear = $session['academic_year'] ?? 'all';
+
+        $removed = MultiAccountService::hapusViaWs($activeNoCust, $request->no_cust);
+
+        if (empty($removed['status'])) {
+            return response()->json([
+                'status' => false,
+                'message' => $removed['message'] ?? 'Gagal menghapus akun',
+            ], 422);
+        }
+
+        MultiAccountService::putSession(
+            $activeNoCust,
+            $activeVaDisplay,
+            $activeYear,
+            $removed['group_id'] ?? null
+        );
+
+        return response()->json([
+            'status' => true,
+            'message' => $removed['message'] ?? 'Akun berhasil dihapus dari multi akun',
+            'data' => [
+                'group_id' => $removed['group_id'] ?? null,
+                'accounts' => ($removed['members'] ?? collect())->values(),
+                'active_no_cust' => $removed['active_no_cust'] ?? $activeNoCust,
+                'removed_no_cust' => $removed['removed_no_cust'] ?? null,
+            ],
+        ]);
+    }
+
     public function switch(Request $request)
     {
         $request->validate([

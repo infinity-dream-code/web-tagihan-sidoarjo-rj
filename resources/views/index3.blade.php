@@ -223,13 +223,16 @@ html.dark .badge-active{background:#052e16;color:#86efac}
 .badge-inactive{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
 .ma-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1.15rem}
 .ma-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);text-align:left;cursor:pointer;transition:border .15s,background .15s,box-shadow .15s;color:var(--text);font:inherit}
-.ma-item:hover:not(:disabled){border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(21,128,61,.1)}
+.ma-item:hover:not(.is-active){border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(21,128,61,.1)}
 .ma-item.is-active{border-color:var(--accent);cursor:default;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
-.ma-item:disabled{opacity:1}
 .ma-item-main{min-width:0;flex:1}
 .ma-item-name{font-size:14px;font-weight:700;margin:0 0 2px;word-break:break-word}
 .ma-item-meta{font-size:12px;color:var(--text3);margin:0;word-break:break-word}
-.ma-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.ma-item-right{display:flex;flex-direction:row;align-items:center;gap:8px;flex-shrink:0}
+.ma-del{width:34px;height:34px;border-radius:9px;border:1px solid #fecaca;background:transparent;color:#dc2626;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0}
+.ma-del:hover{background:#fef2f2}
+html.dark .ma-del{border-color:#7f1d1d;color:#f87171}
+html.dark .ma-del:hover{background:#450a0a}
 .ma-section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin:0 0 .75rem}
 .ma-error{display:none;margin:0 0 .85rem;padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px}
 html.dark .ma-error{background:#450a0a;border-color:#7f1d1d;color:#fca5a5}
@@ -656,11 +659,10 @@ h1{font-size:1.15rem}
       <div class="ma-list" id="maList">
         @foreach($multiAccounts as $acc)
           @php $isActive = !empty($acc['is_active']); @endphp
-          <button
-            type="button"
+          <div
             class="ma-item {{ $isActive ? 'is-active' : '' }}"
             data-no-cust="{{ $acc['no_cust'] ?? '' }}"
-            @if($isActive) disabled aria-current="true" @endif
+            @if($isActive) aria-current="true" @endif
           >
             <div class="ma-item-main">
               <p class="ma-item-name">{{ $acc['nama'] ?? '-' }}</p>
@@ -668,8 +670,13 @@ h1{font-size:1.15rem}
             </div>
             <div class="ma-item-right">
               <span class="badge {{ $isActive ? 'badge-active' : 'badge-inactive' }}">{{ $isActive ? 'Aktif' : 'Nonaktif' }}</span>
+              @if(count($multiAccounts) > 1)
+              <button type="button" class="ma-del" data-hapus-no-cust="{{ $acc['no_cust'] ?? '' }}" title="Hapus dari multi akun" aria-label="Hapus dari multi akun">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+              @endif
             </div>
-          </button>
+          </div>
         @endforeach
       </div>
 
@@ -939,6 +946,7 @@ const siswaBayar = {
 };
 const generateVaUrl = @json(route('generate-va'));
 const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
+const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
 let maYearsLoaded = false;
@@ -1023,22 +1031,29 @@ function renderMultiAkunList(accounts) {
     list.innerHTML = '<div class="empty-note">Belum ada akun terhubung</div>';
     return;
   }
+  const showDelete = multiAkunAccounts.length > 1;
   list.innerHTML = multiAkunAccounts.map(acc => {
     const active = !!acc.is_active;
     const nama = esc(acc.nama || '-');
     const kelas = esc(acc.kelas || '-');
     const va = esc(acc.va_display || acc.no_cust || '-');
     const noCust = esc(String(acc.no_cust || ''));
+    const delBtn = showDelete
+      ? `<button type="button" class="ma-del" data-hapus-no-cust="${noCust}" title="Hapus dari multi akun" aria-label="Hapus dari multi akun">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>`
+      : '';
     return `
-      <button type="button" class="ma-item ${active ? 'is-active' : ''}" data-no-cust="${noCust}" ${active ? 'disabled aria-current="true"' : ''}>
+      <div class="ma-item ${active ? 'is-active' : ''}" data-no-cust="${noCust}" ${active ? 'aria-current="true"' : ''}>
         <div class="ma-item-main">
           <p class="ma-item-name">${nama}</p>
           <p class="ma-item-meta">${kelas} · VA ${va}</p>
         </div>
         <div class="ma-item-right">
           <span class="badge ${active ? 'badge-active' : 'badge-inactive'}">${active ? 'Aktif' : 'Nonaktif'}</span>
+          ${delBtn}
         </div>
-      </button>`;
+      </div>`;
   }).join('');
 }
 
@@ -1062,10 +1077,64 @@ function switchMultiAkun(noCust) {
   form.submit();
 }
 
+async function hapusMultiAkun(noCust, namaHint) {
+  if (!noCust) return;
+  clearMaMessages();
+  const label = namaHint || noCust;
+  if (typeof Swal !== 'undefined') {
+    const conf = await Swal.fire({
+      icon: 'warning',
+      title: 'Hapus dari multi akun?',
+      html: `Akun <b>${esc(label)}</b> akan diputus dari koneksi multi akun.`,
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+      ...swalTheme()
+    });
+    if (!conf.isConfirmed) return;
+  } else if (!confirm('Hapus akun dari multi akun?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(multiAkunHapusUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({ no_cust: noCust })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.status) {
+      showMaError(data.message || 'Gagal menghapus akun');
+      return;
+    }
+    renderMultiAkunList(data.data?.accounts || []);
+    showMaSuccess(data.message || 'Akun berhasil dihapus dari multi akun');
+  } catch (err) {
+    showMaError('Terjadi kesalahan jaringan');
+  }
+}
+
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('#maList .ma-item');
-  if (!btn || btn.disabled || btn.classList.contains('is-active')) return;
-  const noCust = btn.getAttribute('data-no-cust');
+  const del = e.target.closest('#maList .ma-del');
+  if (del) {
+    e.preventDefault();
+    e.stopPropagation();
+    const noCust = del.getAttribute('data-hapus-no-cust');
+    const row = del.closest('.ma-item');
+    const nama = row?.querySelector('.ma-item-name')?.textContent || noCust;
+    hapusMultiAkun(noCust, nama);
+    return;
+  }
+
+  const item = e.target.closest('#maList .ma-item');
+  if (!item || item.classList.contains('is-active')) return;
+  const noCust = item.getAttribute('data-no-cust');
   if (!noCust) return;
   e.preventDefault();
   switchMultiAkun(noCust);
@@ -1140,6 +1209,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function formatRp(n) {
   return 'Rp ' + (parseInt(n, 10) || 0).toLocaleString('id-ID');
+}
+
+function formatNovaDisplay(va) {
+  let n = String(va ?? '').replace(/\s+/g, '');
+  if (!n || n === '-') return '-';
+  n = n.replace(/^(757777|797766|751000)/, '');
+  n = n.replace(/^0+/, '') || n;
+  return n ? ('757777' + n) : '-';
 }
 
 function esc(s) {
@@ -1340,7 +1417,7 @@ function showPaymentModal() {
       <div><span class="pi-lbl">Nama</span><div class="pi-val">${esc(siswaBayar.nama) || '-'}</div></div>
       <div><span class="pi-lbl">Kelas</span><div class="pi-val">${esc(siswaBayar.kelas) || '-'}</div></div>
       <div><span class="pi-lbl">NIS</span><div class="pi-val">${esc(siswaBayar.no_cust || siswaBayar.num2nd) || '-'}</div></div>
-      <div><span class="pi-lbl">Nomor VA</span><div class="pi-val">${esc(siswaBayar.va_number || siswaBayar.no_cust) || '-'}</div></div>
+      <div><span class="pi-lbl">Nomor VA</span><div class="pi-val">${esc(formatNovaDisplay(siswaBayar.va_number || siswaBayar.no_cust)) || '-'}</div></div>
     </div>
     <div class="pay-tbl-wrap">
       <table class="pay-tbl">
@@ -1443,16 +1520,16 @@ async function prosesPembayaran() {
     console.log('generate-va response', res.status, data);
     const rawVa = data?.data?.va_number ?? data?.va_number;
     const vaOk = rawVa !== false && rawVa !== null && rawVa !== undefined && String(rawVa) !== 'false' && String(rawVa).trim() !== '';
-    const va = (data?.status && vaOk) ? nocust : '';
+    const va = (data?.status && vaOk) ? formatNovaDisplay(nocust || rawVa) : '';
 
-    if (data?.status && va) {
+    if (data?.status && va && va !== '-') {
       document.getElementById('vaResult').innerHTML = `
         <div class="va-box">
           <h4>Nomor Virtual Account</h4>
           <div class="va-number" id="vaNumberText">${esc(va)}</div>
           <button type="button" class="btn-copy" onclick="copyVa()">Salin nomor VA</button>
           <p class="va-meta">Total: <b>${formatRp(total)}</b></p>
-          <p class="va-help">Bayar ke nomor VA di atas.</p>
+          <p class="va-help">Bayar ke nomor VA di atas (kode bank 757777).</p>
         </div>`;
       const actions = document.getElementById('payActions');
       if (actions) {

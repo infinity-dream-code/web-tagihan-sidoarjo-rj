@@ -18,7 +18,7 @@ class MultiAkun
     {
         $va = preg_replace('/\s+/', '', (string) $va);
 
-        foreach (['751000', '797766'] as $prefix) {
+        foreach (['757777', '751000', '797766'] as $prefix) {
             if (strpos($va, $prefix) === 0) {
                 $va = substr($va, strlen($prefix));
                 break;
@@ -195,6 +195,80 @@ class MultiAkun
         }
 
         return $this->upsertMember($siswa, $vaDisplay, $academicYear, (int) $member['group_id']);
+    }
+
+    /**
+     * Hapus satu akun dari grup multi akun.
+     * active_va harus berada di grup yang sama dengan target.
+     * Jika sisa anggota < 2, grup dibubarkan.
+     *
+     * @return array{group_id:int|null, accounts:array, active_no_cust:string, removed_no_cust:string}
+     */
+    public function removeMember($activeVa, $targetVa)
+    {
+        $activeNoCust = $this->normalizeNoCust($activeVa);
+        $targetNoCust = $this->normalizeNoCust($targetVa);
+
+        if ($activeNoCust === '' || $targetNoCust === '') {
+            throw new InvalidArgumentException('VA tidak valid');
+        }
+
+        $activeMember = $this->findMember($activeNoCust);
+        $targetMember = $this->findMember($targetNoCust);
+
+        if (!$activeMember) {
+            throw new InvalidArgumentException('Akun aktif tidak berada dalam multi akun');
+        }
+        if (!$targetMember) {
+            throw new InvalidArgumentException('Akun yang akan dihapus tidak ditemukan di multi akun');
+        }
+        if ((int) $activeMember['group_id'] !== (int) $targetMember['group_id']) {
+            throw new InvalidArgumentException('Akun tujuan tidak terhubung dengan multi akun aktif');
+        }
+
+        $groupId = (int) $activeMember['group_id'];
+
+        $this->db->beginTransaction();
+        try {
+            $del = $this->db->prepare('DELETE FROM multi_account_members WHERE no_cust = :no_cust LIMIT 1');
+            $del->execute([':no_cust' => $targetNoCust]);
+
+            $countStmt = $this->db->prepare('SELECT COUNT(*) FROM multi_account_members WHERE group_id = :gid');
+            $countStmt->execute([':gid' => $groupId]);
+            $remaining = (int) $countStmt->fetchColumn();
+
+            if ($remaining < 2) {
+                $clear = $this->db->prepare('DELETE FROM multi_account_members WHERE group_id = :gid');
+                $clear->execute([':gid' => $groupId]);
+                $delGroup = $this->db->prepare('DELETE FROM multi_account_groups WHERE id = :id');
+                $delGroup->execute([':id' => $groupId]);
+                $groupId = null;
+                $accounts = [];
+            } else {
+                // List dari akun aktif jika masih ada, kalau aktif yang dihapus pakai anggota tersisa
+                $listFrom = $this->findMember($activeNoCust) ? $activeNoCust : null;
+                if (!$listFrom) {
+                    $any = $this->db->prepare('SELECT no_cust FROM multi_account_members WHERE group_id = :gid LIMIT 1');
+                    $any->execute([':gid' => $groupId]);
+                    $listFrom = $any->fetchColumn() ?: $activeNoCust;
+                }
+                $accounts = $this->listAccounts($listFrom, $activeNoCust);
+            }
+
+            $this->db->commit();
+
+            return [
+                'group_id' => $groupId,
+                'accounts' => $accounts,
+                'active_no_cust' => $activeNoCust,
+                'removed_no_cust' => $targetNoCust,
+            ];
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function getTagihanByVa($va, $tahunAkademik)
