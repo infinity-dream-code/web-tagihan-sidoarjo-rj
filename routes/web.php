@@ -7,8 +7,13 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
 Route::get('/', function () {
-    return view('index3');
+    return response()
+        ->view('index3')
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache');
 });
+
+Route::post('/logout', [TagihanController::class, 'logout'])->name('logout');
 
 Route::get('/dua', function () {
     return view('index');

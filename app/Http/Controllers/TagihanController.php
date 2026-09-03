@@ -73,13 +73,15 @@ class TagihanController extends Controller
         $request->validate([
             'no_cust' => 'required|string',
             'password' => 'required|string',
-            'academic_year' => 'required|string'
+            'academic_year' => 'nullable|string'
         ]);
+
+        $academicYear = 'all';
 
         $payload = [
             'va' => self::normalizeVa($request->no_cust),
             'password' => $request->password,
-            'tahun_akademik' => $request->academic_year
+            'tahun_akademik' => $academicYear
         ];
 
         $response = Http::timeout(30)
@@ -102,7 +104,7 @@ class TagihanController extends Controller
             return back()->with([
                 'error' => $result['message'] ?? 'VA atau password salah, atau data tidak ditemukan',
                 'va' => $request->no_cust,
-                'academic_year' => $request->academic_year
+                'academic_year' => $academicYear
             ])->withInput($request->except('password'));
         }
 
@@ -111,7 +113,7 @@ class TagihanController extends Controller
             MultiAccountService::syncMemberAfterLogin(
                 $result['data'],
                 $request->no_cust,
-                $request->academic_year
+                $academicYear
             );
 
             $multiAccounts = MultiAccountService::listForNoCust(
@@ -126,7 +128,7 @@ class TagihanController extends Controller
                 'tagihan' => [
                     'active_no_cust' => self::normalizeVa($request->no_cust),
                     'va_display' => $request->no_cust,
-                    'academic_year' => $request->academic_year,
+                    'academic_year' => $academicYear,
                     'group_id' => null,
                 ],
             ]);
@@ -135,7 +137,7 @@ class TagihanController extends Controller
         return view('index3', compact('result', 'multiAccounts'))
             ->with([
                 'va' => $request->no_cust,
-                'academic_year' => $request->academic_year
+                'academic_year' => $academicYear
             ]);
     }
 
@@ -377,5 +379,18 @@ class TagihanController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function logout(Request $request)
+    {
+        $request->session()->forget('tagihan');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/')->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 }

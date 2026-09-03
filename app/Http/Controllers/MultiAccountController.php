@@ -83,7 +83,7 @@ class MultiAccountController extends Controller
         $request->validate([
             'no_cust' => 'required|string',
             'password' => 'required|string',
-            'academic_year' => 'required|string',
+            'academic_year' => 'nullable|string',
         ]);
 
         $session = $this->requireActiveSession();
@@ -95,7 +95,7 @@ class MultiAccountController extends Controller
         }
 
         $activeNoCust = $session['active_no_cust'];
-        $activeYear = $session['academic_year'] ?? 'all';
+        $activeYear = 'all';
         $activeVaDisplay = $session['va_display'] ?? $activeNoCust;
 
         $linked = MultiAccountService::linkAccountsViaWs(
@@ -103,7 +103,7 @@ class MultiAccountController extends Controller
             $activeYear,
             $request->no_cust,
             $request->password,
-            $request->academic_year
+            'all'
         );
 
         if (empty($linked['status'])) {
@@ -147,7 +147,7 @@ class MultiAccountController extends Controller
 
         $activeNoCust = $session['active_no_cust'];
         $activeVaDisplay = $session['va_display'] ?? $activeNoCust;
-        $activeYear = $session['academic_year'] ?? 'all';
+        $activeYear = 'all';
 
         $removed = MultiAccountService::hapusViaWs($activeNoCust, $request->no_cust);
 
@@ -191,7 +191,7 @@ class MultiAccountController extends Controller
 
         $activeNoCust = $session['active_no_cust'];
         $targetNoCust = TagihanController::normalizeVa($request->no_cust);
-        $academicYear = $request->input('academic_year', $session['academic_year'] ?? 'all') ?: 'all';
+        $academicYear = 'all';
 
         $switched = MultiAccountService::switchViaWs($activeNoCust, $targetNoCust, $academicYear);
 
@@ -223,7 +223,7 @@ class MultiAccountController extends Controller
     private function switchFailed(array $session, string $message)
     {
         $activeNoCust = $session['active_no_cust'] ?? null;
-        $academicYear = $session['academic_year'] ?? 'all';
+        $academicYear = 'all';
         $vaDisplay = $session['va_display'] ?? $activeNoCust;
 
         if (!$activeNoCust) {

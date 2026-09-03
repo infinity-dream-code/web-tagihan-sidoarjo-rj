@@ -65,7 +65,8 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;ba
 html.dark .page-bg{background:
   radial-gradient(1200px 420px at 50% -10%, rgba(74,222,128,.12), transparent 60%),
   radial-gradient(700px 280px at 100% 100%, rgba(20,83,45,.35), transparent 55%)}
-.wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:1.25rem 1rem 2.5rem;padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right));padding-bottom:max(2.5rem,env(safe-area-inset-bottom))}
+.wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:1.25rem 1rem 2.5rem;padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right));padding-bottom:max(2.5rem,env(safe-area-inset-bottom))}
+.form-grid{display:grid;grid-template-columns:1fr}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;gap:10px}
 .brand-wrap{display:flex;align-items:center;gap:12px;min-width:0}
 .brand-logo{height:52px;width:auto;max-width:220px;object-fit:contain;object-position:left center;flex-shrink:0;border-radius:8px;background:#fff}
@@ -118,6 +119,10 @@ html.dark .submit-btn{color:#052e16}
 html.dark .tbl-controls select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%2387a090' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")}
 .btn-showall{min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;transition:background .15s}
 .btn-showall:hover{background:var(--border)}
+.btn-logout{min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid #fecaca;background:transparent;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-logout:hover{background:#fef2f2}
+html.dark .btn-logout{border-color:#7f1d1d;color:#f87171}
+html.dark .btn-logout:hover{background:#450a0a}
 .tbl-info{font-size:12px;color:var(--text3)}
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1px solid var(--border);background:var(--surface)}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -247,6 +252,13 @@ html.dark .ma-success{background:#052e16;border-color:#14532d;color:#86efac}
 .scroll-top{position:fixed;bottom:max(1.15rem,env(safe-area-inset-bottom));right:max(1rem,env(safe-area-inset-right));width:44px;height:44px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 20px rgba(19,38,26,.12);z-index:20}
 .scroll-top:hover{background:var(--surface2)}
 .empty-note{text-align:center;padding:1.5rem 1rem;color:var(--text3);font-size:13px}
+@media(min-width:900px){
+.wrap{padding:1.5rem 1.5rem 2.75rem;padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right))}
+.form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.15rem;align-items:end}
+.form-grid .field{margin-bottom:1rem}
+.student-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}
+.card{padding:1.5rem 1.45rem}
+}
 @media(max-width:720px){
 .tbl-wrap{display:none}
 .card-list{display:flex}
@@ -293,30 +305,27 @@ h1{font-size:1.15rem}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="akunCard" @if(isset($result) && !empty($result['status'])) hidden @endif>
     <form method="POST" action="/" id="billForm">
       @csrf
       <div class="section-title">Informasi akun</div>
-      <div class="field">
-        <label>Nomor virtual account <em>*</em></label>
-        <input type="text" name="no_cust" id="noCust" inputmode="numeric" autocomplete="username" placeholder="797766xxx" value="{{ old('no_cust', $va ?? '') }}" required>
-      </div>
-      <div class="field">
-        <label>Password <em>*</em></label>
-        <div class="pw-wrap">
-          <input type="password" name="password" id="password" autocomplete="current-password" placeholder="Masukkan password" required>
-          <button type="button" class="pw-toggle" id="togglePassword" aria-label="Tampilkan password">
-            <svg id="iconEye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            <svg id="iconEyeOff" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" hidden><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.223-3.444M6.18 6.18A9.966 9.966 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.974 9.974 0 01-4.245 5.253M3 3l18 18"/></svg>
-          </button>
+      <div class="form-grid">
+        <div class="field">
+          <label>Nomor virtual account <em>*</em></label>
+          <input type="text" name="no_cust" id="noCust" inputmode="numeric" autocomplete="username" placeholder="797766xxx" value="{{ old('no_cust', $va ?? '') }}" required>
+        </div>
+        <div class="field">
+          <label>Password <em>*</em></label>
+          <div class="pw-wrap">
+            <input type="password" name="password" id="password" autocomplete="current-password" placeholder="Masukkan password" required>
+            <button type="button" class="pw-toggle" id="togglePassword" aria-label="Tampilkan password">
+              <svg id="iconEye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <svg id="iconEyeOff" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" hidden><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.223-3.444M6.18 6.18A9.966 9.966 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.974 9.974 0 01-4.245 5.253M3 3l18 18"/></svg>
+            </button>
+          </div>
         </div>
       </div>
-      <div class="field">
-        <label>Tahun akademik <em>*</em></label>
-        <select id="academic_year" name="academic_year">
-          <option value="">Memuat data...</option>
-        </select>
-      </div>
+      <input type="hidden" name="academic_year" id="academic_year" value="all">
       @if(config('services.turnstile.enabled'))
       <div class="field">
         <label>Verifikasi keamanan <em>*</em></label>
@@ -371,13 +380,14 @@ h1{font-size:1.15rem}
         <div class="siswa-head">
           <div class="section-title">Data siswa</div>
           <div class="tbl-controls">
+            <button type="button" class="btn-logout" id="btnLogout" onclick="logoutAkun()">Logout</button>
             <button type="button" class="btn-showall" id="btnMultiAkun" onclick="openMultiAkunModal()">Multi akun</button>
           </div>
         </div>
         <div class="student-grid">
           <div class="sf"><label>Nama</label><p>{{ $result['data']['nama'] ?? '-' }}</p></div>
           <div class="sf"><label>Kelas</label><p>{{ $result['data']['kelas'] ?? '-' }}</p></div>
-          <div class="sf"><label>Angkatan</label><p>{{ $academic_year ?: '-' }}</p></div>
+          <div class="sf"><label>Angkatan</label><p>{{ ($academic_year ?? 'all') === 'all' ? 'Semua' : $academic_year }}</p></div>
           <div class="sf"><label>Saldo VA</label><p>Rp {{ number_format($result['data']['saldo'] ?? 0, 0, ',', '.') }}</p></div>
           <div class="sf"><label>NOVA</label><p>{{ $result['data']['va_number'] ?? '-' }}</p></div>
           <div class="sf"><label>Jenjang</label><p>{{ $result['data']['jenjang'] ?? '-' }}</p></div>
@@ -386,7 +396,7 @@ h1{font-size:1.15rem}
         <div class="divider"></div>
 
         <div class="tbl-bar">
-          <div class="tbl-title">Tagihan aktif — {{ $academic_year ?: '-' }}</div>
+          <div class="tbl-title">Tagihan aktif — {{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }}</div>
           <div class="tbl-controls">
             <select id="tagihanPerPage" onchange="changeTagihanPerPage()" aria-label="Jumlah data">
               <option value="10">10</option>
@@ -501,7 +511,7 @@ h1{font-size:1.15rem}
         <div class="divider"></div>
 
         <div class="tbl-bar">
-          <div class="tbl-title">Tagihan lunas — {{ $academic_year ?: '-' }}</div>
+          <div class="tbl-title">Tagihan lunas — {{ ($academic_year ?? 'all') === 'all' ? 'Semua tahun akademik' : $academic_year }}</div>
           <div class="tbl-controls">
             <select id="lunasPerPage" onchange="changeLunasPerPage()" aria-label="Jumlah data">
               <option value="10">10</option>
@@ -698,12 +708,7 @@ h1{font-size:1.15rem}
             </button>
           </div>
         </div>
-        <div class="field">
-          <label>Tahun akademik <em>*</em></label>
-          <select name="academic_year" id="maAcademicYear" required>
-            <option value="all">Semua tahun akademik</option>
-          </select>
-        </div>
+        <input type="hidden" name="academic_year" id="maAcademicYear" value="all">
         <button type="submit" class="submit-btn" id="maSubmitBtn">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           Tambah akun
@@ -719,9 +724,13 @@ h1{font-size:1.15rem}
 <form id="multiAkunSwitchForm" method="POST" action="{{ route('multi-akun.switch') }}" style="display:none">
   @csrf
   <input type="hidden" name="no_cust" id="maSwitchNoCust">
-  <input type="hidden" name="academic_year" id="maSwitchYear" value="{{ $academic_year ?? 'all' }}">
+  <input type="hidden" name="academic_year" id="maSwitchYear" value="all">
 </form>
 @endif
+
+<form id="logoutForm" method="POST" action="{{ route('logout') }}" style="display:none">
+  @csrf
+</form>
 
 <button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll ke atas" type="button">
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
@@ -733,7 +742,6 @@ let turnstileEnabled = @json((bool) config('services.turnstile.enabled'));
 let turnstileToken = turnstileEnabled ? null : 'bypass';
 let tagihanPage = 1, tagihanPerPageVal = 10, tagihanAll = false;
 let lunasPage = 1, lunasPerPageVal = 10, lunasAll = false;
-const preselectedYear = @json(old('academic_year', $academic_year ?? 'all'));
 
 const ICON_MOON = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
 const ICON_SUN = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
@@ -810,26 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const s = document.getElementById('academic_year');
-  if (s) {
-    fetch("/list-tahun-akademik")
-      .then(r => r.json())
-      .then(data => {
-        s.innerHTML = '';
-        const def = document.createElement('option');
-        def.value = 'all'; def.textContent = 'Semua tahun akademik';
-        s.appendChild(def);
-        if (data.status && data.data.length) {
-          data.data.forEach(item => {
-            const o = document.createElement('option');
-            o.value = item.thn_aka; o.textContent = item.thn_aka;
-            s.appendChild(o);
-          });
-        }
-        const match = Array.from(s.options).find(o => o.value === preselectedYear);
-        s.value = match ? preselectedYear : 'all';
-      })
-      .catch(() => { s.innerHTML = '<option>Gagal memuat data</option>'; });
-  }
+  if (s && !s.value) s.value = 'all';
   initTagihanPagination();
   initLunasPagination();
 });
@@ -949,7 +938,6 @@ const multiAkunTambahUrl = @json(route('multi-akun.tambah'));
 const multiAkunHapusUrl = @json(route('multi-akun.hapus'));
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 let multiAkunAccounts = @json(isset($result) && !empty($result['status']) ? ($multiAccounts ?? []) : []);
-let maYearsLoaded = false;
 
 function openMultiAkunModal() {
   const modal = document.getElementById('multiAkunModal');
@@ -957,7 +945,8 @@ function openMultiAkunModal() {
   clearMaMessages();
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
-  loadMaAcademicYears();
+  const yearEl = document.getElementById('maAcademicYear');
+  if (yearEl) yearEl.value = 'all';
 }
 
 function closeMultiAkunModal() {
@@ -990,37 +979,6 @@ function showMaSuccess(msg) {
   if (!ok) return;
   ok.textContent = msg || 'Berhasil';
   ok.classList.add('open');
-}
-
-function loadMaAcademicYears() {
-  const s = document.getElementById('maAcademicYear');
-  if (!s || maYearsLoaded) {
-    if (s && !maYearsLoaded) s.value = preselectedYear || 'all';
-    return;
-  }
-  fetch('/list-tahun-akademik')
-    .then(r => r.json())
-    .then(data => {
-      s.innerHTML = '';
-      const def = document.createElement('option');
-      def.value = 'all';
-      def.textContent = 'Semua tahun akademik';
-      s.appendChild(def);
-      if (data.status && data.data && data.data.length) {
-        data.data.forEach(item => {
-          const o = document.createElement('option');
-          o.value = item.thn_aka;
-          o.textContent = item.thn_aka;
-          s.appendChild(o);
-        });
-      }
-      const match = Array.from(s.options).find(o => o.value === preselectedYear);
-      s.value = match ? preselectedYear : 'all';
-      maYearsLoaded = true;
-    })
-    .catch(() => {
-      s.innerHTML = '<option value="all">Semua tahun akademik</option>';
-    });
 }
 
 function renderMultiAkunList(accounts) {
@@ -1057,6 +1015,26 @@ function renderMultiAkunList(accounts) {
   }).join('');
 }
 
+function logoutAkun() {
+  try { sessionStorage.clear(); } catch (e) {}
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const form = document.getElementById('logoutForm');
+  const goHome = () => window.location.replace('/');
+  fetch(@json(url('/logout')), {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': token,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'text/html'
+    },
+    credentials: 'same-origin',
+    redirect: 'follow'
+  }).then(goHome).catch(() => {
+    if (form) form.submit();
+    else goHome();
+  });
+}
+
 function switchMultiAkun(noCust) {
   const form = document.getElementById('multiAkunSwitchForm');
   const input = document.getElementById('maSwitchNoCust');
@@ -1066,7 +1044,7 @@ function switchMultiAkun(noCust) {
     return;
   }
   input.value = noCust;
-  if (year) year.value = (document.getElementById('maAcademicYear')?.value) || preselectedYear || 'all';
+  if (year) year.value = 'all';
   if (typeof Swal !== 'undefined') {
     Swal.fire({
       title: 'Beralih akun...',
@@ -1146,7 +1124,7 @@ async function submitTambahMultiAkun(e) {
   const btn = document.getElementById('maSubmitBtn');
   const noCust = document.getElementById('maNoCust')?.value?.trim();
   const password = document.getElementById('maPassword')?.value || '';
-  const academicYear = document.getElementById('maAcademicYear')?.value || 'all';
+  const academicYear = 'all';
   if (!noCust || !password) {
     showMaError('Lengkapi VA dan password');
     return false;
