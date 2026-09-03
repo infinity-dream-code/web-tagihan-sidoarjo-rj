@@ -932,10 +932,35 @@ function showDetailModal(tagihan) {
   document.getElementById('mTahun').textContent = tagihan.tahun_akademik_tagihan || '-';
   const expEl = document.getElementById('mExpDate');
   if (expEl) expEl.textContent = formatExpDate(expDateOf(tagihan));
-  let t = '<table style="width:100%;border-collapse:collapse;margin-top:.75rem"><thead><tr style="background:var(--surface2)"><th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Komponen</th><th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Nominal</th></tr></thead><tbody>';
-  if (Array.isArray(tagihan.detail) && tagihan.detail.length) {
-    tagihan.detail.forEach(d => { t += `<tr><td style="padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)">${d.akun_detail||'-'}</td><td style="padding:9px 12px;border-bottom:1px solid var(--border);text-align:right;font-size:13px;color:var(--text);font-weight:650">Rp ${parseInt(d.nominal_detail||0).toLocaleString('id-ID')}</td></tr>`; });
-  } else { t += `<tr><td colspan="2" style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">Tidak ada rincian</td></tr>`; }
+  const details = Array.isArray(tagihan.detail) ? tagihan.detail : [];
+  const isTran = details.some(d => d.sumber === 'tran' || d.trxdate || d.TRXDATE);
+  const th = 'padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)';
+  const td = 'padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)';
+  let t = '<table style="width:100%;border-collapse:collapse;margin-top:.75rem"><thead><tr style="background:var(--surface2)">';
+  if (isTran) {
+    t += `<th style="${th}">Tanggal</th><th style="${th}">Metode</th><th style="${th}">Ref</th><th style="${th};text-align:right">Nominal</th></tr></thead><tbody>`;
+    if (details.length) {
+      details.forEach(d => {
+        t += `<tr>
+          <td style="${td}">${esc(d.trxdate || d.TRXDATE || '-')}</td>
+          <td style="${td}">${esc(d.metode || d.akun_detail || '-')}</td>
+          <td style="${td}">${esc(d.noreff || d.transno || '-')}</td>
+          <td style="${td};text-align:right;font-weight:650">Rp ${parseInt(d.nominal_detail||0).toLocaleString('id-ID')}</td>
+        </tr>`;
+      });
+    } else {
+      t += `<tr><td colspan="4" style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">Tidak ada rincian</td></tr>`;
+    }
+  } else {
+    t += `<th style="${th}">Komponen</th><th style="${th};text-align:right">Nominal</th></tr></thead><tbody>`;
+    if (details.length) {
+      details.forEach(d => {
+        t += `<tr><td style="${td}">${esc(d.akun_detail||'-')}</td><td style="${td};text-align:right;font-weight:650">Rp ${parseInt(d.nominal_detail||0).toLocaleString('id-ID')}</td></tr>`;
+      });
+    } else {
+      t += `<tr><td colspan="2" style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">Tidak ada rincian</td></tr>`;
+    }
+  }
   t += '</tbody></table>';
   document.getElementById('mDetailTable').innerHTML = t;
   document.getElementById('detailModal').classList.add('open');

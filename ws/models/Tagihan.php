@@ -268,7 +268,7 @@ class Tagihan
 
     private function stripVa($va_number)
     {
-        foreach (['757777', '751000', '797766'] as $prefix) {
+        foreach (['751000', '797766'] as $prefix) {
             if (strpos((string) $va_number, $prefix) === 0) {
                 return substr($va_number, strlen($prefix));
             }
@@ -326,23 +326,18 @@ class Tagihan
         }
 
         $selectCols = "
-            b.AA, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
+            b.AA, b.CUSTID, b.BILLCD, b.BILLNM AS nama_tagihan, b.BILLAM AS total_tagihan,
+            b.BILLPAID AS billpaid,
             b.BILLAC AS periode, b.BTA AS tahun_akademik_tagihan,
             b.FTGLTagihan, b.FURUTAN, b.isINSTALLABLE AS isINSTALLABLE,
-            d.BILLAM AS nominal_detail, d.tahun AS tahun_detail, u.NamaAkun AS akun_detail,
             b.PAIDST, b.PAIDDT, b.ExpDate
-        ";
-        $joins = "
-            FROM scctbill b
-            LEFT JOIN scctbill_detail d ON b.CUSTID = d.CUSTID AND b.BILLCD = d.BILLCD
-            LEFT JOIN u_akun u ON d.KodePost = u.KodeAkun
         ";
 
         $sqlBelum = "
         SELECT $selectCols
-        $joins
+        FROM scctbill b
         WHERE $baseFilter AND b.PAIDST = '0' AND b.FSTSBolehBayar = '1'
-        ORDER BY b.FURUTAN ASC, d.tahun ASC
+        ORDER BY b.FURUTAN ASC
     ";
         $stmtBelum = $this->db->prepare($sqlBelum);
         $params = [':custid' => $siswa['id']];
@@ -354,7 +349,7 @@ class Tagihan
 
         $sqlLunas = "
         SELECT $selectCols
-        $joins
+        FROM scctbill b
         WHERE $baseFilter AND b.PAIDST = '1'
         ORDER BY b.PAIDDT DESC, b.FURUTAN ASC
     ";
@@ -362,48 +357,38 @@ class Tagihan
         $stmtLunas->execute($params);
         $lunas = $stmtLunas->fetchAll(PDO::FETCH_ASSOC);
 
-        $paidMap = $this->getPaidMap($siswa['id'], $num2nd);
+        $aktifItems = $this->groupData($belumLunas);
+        $lunasItems = $this->groupData($lunas);
+
+        $tagihanAktif = [];
+        foreach ($aktifItems as $item) {
+            if ((int) $item['sisa_tagihan'] <= 0) {
+                $lunasItems[] = $item;
+            } else {
+                $tagihanAktif[] = $item;
+            }
+        }
+
+        $custid = $siswa['id'];
+        $tagihanAktif = $this->attachAktifDetails($custid, $tagihanAktif);
+        $lunasItems = $this->attachLunasDetails($custid, $lunasItems);
 
         $siswa['tahun_dipilih'] = $tahun_akademik ?: 'Semua Tahun Akademik';
-        $siswa['tagihan'] = $this->groupData($belumLunas, $paidMap);
-        $siswa['tagihan_lunas'] = $this->groupData($lunas, $paidMap);
+        $siswa['tagihan'] = $tagihanAktif;
+        $siswa['tagihan_lunas'] = $lunasItems;
 
         return $siswa;
     }
 
-    private function getPaidMap($custid, $nocust)
-    {
-        $sql = "SELECT ArrayTagihan, BILLAM FROM scctva WHERE CUSTID = :custid OR NOCUST = :nocust AND STATUS = 1";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            ':custid' => $custid,
-            ':nocust' => $nocust,
-        ]);
-
-        $paid = [];
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $aas = array_map('trim', explode(',', (string) $row['ArrayTagihan']));
-            $ams = array_map('trim', explode(',', (string) $row['BILLAM']));
-            foreach ($aas as $i => $aa) {
-                if ($aa === '') {
-                    continue;
-                }
-                $amt = isset($ams[$i]) ? (int) $ams[$i] : 0;
-                $paid[$aa] = (int) ($paid[$aa] ?? 0) + $amt;
-            }
-        }
-
-        return $paid;
-    }
-
-    private function groupData(array $rows, array $paidMap)
+    private function groupData(array $rows)
     {
         $grouped = [];
         foreach ($rows as $row) {
             $key = $row['AA'];
             if (!isset($grouped[$key])) {
                 $total = (int) $row['total_tagihan'];
-                $sudah = (int) ($paidMap[$row['AA']] ?? $paidMap[(string) $row['AA']] ?? 0);
+                $billpaid = (int) ($row['billpaid'] ?? $row['BILLPAID'] ?? 0);
+                $sudah = max(0, $total - $billpaid);
                 $grouped[$key] = [
                     'AA' => $row['AA'],
                     'BILLCD' => $row['BILLCD'],
@@ -420,18 +405,174 @@ class Tagihan
                     'PAIDST' => $row['PAIDST'],
                     'PAIDDT' => $row['PAIDDT'],
                     'ExpDate' => $row['ExpDate'] ?? null,
+                    'CUSTID' => $row['CUSTID'] ?? null,
+                    'TRANSNO' => $row['TRANSNO'] ?? null,
                     'detail' => []
-                ];
-            }
-            if (!empty($row['nominal_detail'])) {
-                $grouped[$key]['detail'][] = [
-                    'nominal_detail' => $row['nominal_detail'],
-                    'akun_detail' => $row['akun_detail']
                 ];
             }
         }
 
         return array_values($grouped);
+    }
+
+    private function attachAktifDetails($custid, array $items)
+    {
+        foreach ($items as &$item) {
+            $item['detail'] = $this->fetchAktifDetails(
+                $item['CUSTID'] ?? $custid,
+                $item['BILLCD'] ?? null,
+                $item['AA'] ?? null,
+                $item['periode'] ?? null
+            );
+        }
+        unset($item);
+
+        return $items;
+    }
+
+    private function attachLunasDetails($custid, array $items)
+    {
+        foreach ($items as &$item) {
+            $item['detail'] = $this->fetchLunasDetails(
+                $item['CUSTID'] ?? $custid,
+                $item['AA'] ?? null,
+                $item['nama_tagihan'] ?? null,
+                $item['TRANSNO'] ?? null
+            );
+        }
+        unset($item);
+
+        return $items;
+    }
+
+    private function fetchAktifDetails($custid, $billcd, $aa, $periode)
+    {
+        $attempts = [];
+
+        if ($aa !== null && $aa !== '') {
+            $attempts[] = [
+                'sql' => "SELECT d.BILLAM AS nominal_detail, COALESCE(u.NamaAkun, d.KodePost, '-') AS akun_detail
+                    FROM scctbill_detail d
+                    LEFT JOIN u_akun u ON u.KodeAkun = d.KodePost
+                    WHERE d.AA = ?
+                    ORDER BY d.tahun ASC, d.periode ASC",
+                'params' => [$aa],
+            ];
+        }
+
+        if ($custid && $billcd && $periode && preg_match('/^\d{6}/', (string) $periode)) {
+            $tahun = substr((string) $periode, 0, 4);
+            $bulan = substr((string) $periode, 4, 2);
+            $attempts[] = [
+                'sql' => "SELECT d.BILLAM AS nominal_detail, COALESCE(u.NamaAkun, d.KodePost, '-') AS akun_detail
+                    FROM scctbill_detail d
+                    LEFT JOIN u_akun u ON u.KodeAkun = d.KodePost
+                    WHERE d.CUSTID = ? AND d.BILLCD = ? AND CAST(d.tahun AS CHAR) = ? AND CAST(d.periode AS CHAR) = ?
+                    ORDER BY d.tahun ASC, d.periode ASC",
+                'params' => [$custid, $billcd, $tahun, $bulan],
+            ];
+        }
+
+        if ($custid && $billcd) {
+            $attempts[] = [
+                'sql' => "SELECT d.BILLAM AS nominal_detail, COALESCE(u.NamaAkun, d.KodePost, '-') AS akun_detail
+                    FROM scctbill_detail d
+                    LEFT JOIN u_akun u ON u.KodeAkun = d.KodePost
+                    WHERE d.CUSTID = ? AND d.BILLCD = ?
+                    ORDER BY d.tahun ASC, d.periode ASC",
+                'params' => [$custid, $billcd],
+            ];
+        }
+
+        foreach ($attempts as $attempt) {
+            $rows = $this->safeFetch($attempt['sql'], $attempt['params']);
+            $details = [];
+            foreach ($rows as $row) {
+                $details[] = [
+                    'sumber' => 'bill_detail',
+                    'akun_detail' => $row['akun_detail'] ?: '-',
+                    'nominal_detail' => (int) ($row['nominal_detail'] ?? 0),
+                ];
+            }
+            if ($details) {
+                return $details;
+            }
+        }
+
+        return [];
+    }
+
+    private function fetchLunasDetails($custid, $aa, $billnm, $transno)
+    {
+        $attempts = [];
+
+        if ($aa !== null && $aa !== '') {
+            $attempts[] = [
+                'sql' => "SELECT t.TRXDATE, t.METODE, t.DEBET, t.KREDIT, t.NOREFF, t.TRANSNO, t.BILLTARGET, t.INSTALLMENT
+                    FROM sccttran t
+                    WHERE t.BILLID = ?
+                    ORDER BY t.TRXDATE DESC",
+                'params' => [$aa],
+            ];
+        }
+
+        if ($custid && $transno && (string) $transno !== '-') {
+            $attempts[] = [
+                'sql' => "SELECT t.TRXDATE, t.METODE, t.DEBET, t.KREDIT, t.NOREFF, t.TRANSNO, t.BILLTARGET, t.INSTALLMENT
+                    FROM sccttran t
+                    WHERE t.CUSTID = ? AND t.TRANSNO = ?
+                    ORDER BY t.TRXDATE DESC",
+                'params' => [$custid, $transno],
+            ];
+        }
+
+        if ($custid && $billnm) {
+            $attempts[] = [
+                'sql' => "SELECT t.TRXDATE, t.METODE, t.DEBET, t.KREDIT, t.NOREFF, t.TRANSNO, t.BILLTARGET, t.INSTALLMENT
+                    FROM sccttran t
+                    WHERE t.CUSTID = ? AND UPPER(TRIM(t.BILLTARGET)) = UPPER(TRIM(?))
+                    ORDER BY t.TRXDATE DESC",
+                'params' => [$custid, $billnm],
+            ];
+        }
+
+        foreach ($attempts as $attempt) {
+            $rows = $this->safeFetch($attempt['sql'], $attempt['params']);
+            $details = [];
+            foreach ($rows as $row) {
+                $nominal = (int) ($row['DEBET'] ?? 0);
+                if ($nominal <= 0) {
+                    $nominal = (int) ($row['KREDIT'] ?? 0);
+                }
+                $details[] = [
+                    'sumber' => 'tran',
+                    'akun_detail' => $row['BILLTARGET'] ?: ($row['METODE'] ?: '-'),
+                    'nominal_detail' => $nominal,
+                    'trxdate' => $row['TRXDATE'] ?? null,
+                    'metode' => $row['METODE'] ?? null,
+                    'noreff' => $row['NOREFF'] ?? null,
+                    'transno' => $row['TRANSNO'] ?? null,
+                    'installment' => $row['INSTALLMENT'] ?? null,
+                ];
+            }
+            if ($details) {
+                return $details;
+            }
+        }
+
+        return [];
+    }
+
+    private function safeFetch($sql, array $params)
+    {
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(array_values($params));
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            $this->logVa('detail fetch failed', ['error' => $e->getMessage(), 'sql' => $sql]);
+            return [];
+        }
     }
 
     private function flagInstallable(array $row)
