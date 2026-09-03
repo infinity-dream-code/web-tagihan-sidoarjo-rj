@@ -420,6 +420,7 @@ h1{font-size:1.15rem}
                 <th>Dapat dicicil</th>
                 <th>Bayar</th>
                 <th>Detail</th>
+                <th>Exp Date</th>
               </tr>
             </thead>
             <tbody id="tagihanTableBody">
@@ -429,6 +430,10 @@ h1{font-size:1.15rem}
                 $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
                 $totalTagih = (int)($tagih['total_tagihan'] ?? 0);
                 $sisaTagih = (int)($tagih['sisa_tagihan'] ?? max(0, $totalTagih - $sudahBayar));
+                $expRaw = $tagih['ExpDate'] ?? $tagih['expdate'] ?? null;
+                $expLabel = (!empty($expRaw) && !str_starts_with((string) $expRaw, '0000-00-00'))
+                  ? \Carbon\Carbon::parse($expRaw)->format('Y-m-d')
+                  : '-';
               @endphp
               <tr data-index="{{ $i }}">
                 <td>
@@ -449,9 +454,10 @@ h1{font-size:1.15rem}
                   <input type="number" class="pay-input bayar-input" data-index="{{ $i }}" min="1" max="{{ $sisaTagih }}" value="0" disabled inputmode="numeric" aria-label="Nominal bayar">
                 </td>
                 <td><button type="button" class="btn-detail" onclick='showDetailModal(@json($tagih))'>Lihat</button></td>
+                <td>{{ $expLabel }}</td>
               </tr>
               @empty
-              <tr><td colspan="8" class="empty-note">Tidak ada data tersedia</td></tr>
+              <tr><td colspan="9" class="empty-note">Tidak ada data tersedia</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -466,6 +472,10 @@ h1{font-size:1.15rem}
             $sudahBayar = (int)($tagih['sudah_dibayar'] ?? 0);
             $totalTagih = (int)($tagih['total_tagihan'] ?? 0);
             $sisaTagih = (int)($tagih['sisa_tagihan'] ?? max(0, $totalTagih - $sudahBayar));
+            $expRaw = $tagih['ExpDate'] ?? $tagih['expdate'] ?? null;
+            $expLabel = (!empty($expRaw) && !str_starts_with((string) $expRaw, '0000-00-00'))
+              ? \Carbon\Carbon::parse($expRaw)->format('Y-m-d')
+              : '-';
           @endphp
           <article class="bill-card" data-index="{{ $i }}">
             <div class="bill-card-top">
@@ -484,6 +494,7 @@ h1{font-size:1.15rem}
             <div class="bill-meta">
               <span>Sudah dibayar Rp {{ number_format($sudahBayar, 0, ',', '.') }}</span>
               <span>Sisa Rp {{ number_format($sisaTagih, 0, ',', '.') }}</span>
+              <span>Exp Date {{ $expLabel }}</span>
             </div>
             <div class="bill-pay-row">
               <span class="bill-meta">Bayar</span>
@@ -593,6 +604,7 @@ h1{font-size:1.15rem}
     <div class="modal-body">
       <div class="modal-row"><span class="modal-row-lbl">Nama tagihan</span><span class="modal-row-val" id="mNama"></span></div>
       <div class="modal-row"><span class="modal-row-lbl">Tahun akademik</span><span class="modal-row-val" id="mTahun"></span></div>
+      <div class="modal-row"><span class="modal-row-lbl">Exp Date</span><span class="modal-row-val" id="mExpDate"></span></div>
       <div id="mDetailTable"></div>
     </div>
     <div class="modal-foot">
@@ -892,9 +904,34 @@ function changeLunasPerPage() { lunasPerPageVal = parseInt(document.getElementBy
 function showAllTagihan() { tagihanAll = true; initTagihanPagination(); }
 function showAllLunas() { lunasAll = true; initLunasPagination(); }
 
+function formatExpDate(value) {
+  if (!value || String(value).indexOf('0000-00-00') === 0) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) {
+    const raw = String(value);
+    return raw.length >= 10 ? raw.slice(0, 10) : raw;
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function expDateOf(item) {
+  return item?.ExpDate || item?.exp_date || item?.expdate || null;
+}
+
+function earliestExpDate(items) {
+  const dates = (items || []).map(expDateOf).filter(v => v && String(v).indexOf('0000-00-00') !== 0);
+  if (!dates.length) return null;
+  return dates.slice().sort()[0];
+}
+
 function showDetailModal(tagihan) {
   document.getElementById('mNama').textContent = tagihan.nama_tagihan ? tagihan.nama_tagihan.toLowerCase().replace(/_/g,' ').replace(/\b\w/g, l => l.toUpperCase()) : '-';
   document.getElementById('mTahun').textContent = tagihan.tahun_akademik_tagihan || '-';
+  const expEl = document.getElementById('mExpDate');
+  if (expEl) expEl.textContent = formatExpDate(expDateOf(tagihan));
   let t = '<table style="width:100%;border-collapse:collapse;margin-top:.75rem"><thead><tr style="background:var(--surface2)"><th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Komponen</th><th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Nominal</th></tr></thead><tbody>';
   if (Array.isArray(tagihan.detail) && tagihan.detail.length) {
     tagihan.detail.forEach(d => { t += `<tr><td style="padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)">${d.akun_detail||'-'}</td><td style="padding:9px 12px;border-bottom:1px solid var(--border);text-align:right;font-size:13px;color:var(--text);font-weight:650">Rp ${parseInt(d.nominal_detail||0).toLocaleString('id-ID')}</td></tr>`; });
@@ -1373,6 +1410,7 @@ function showPaymentModal() {
   }
 
   const total = selected.reduce((s, i) => s + (parseInt(i.bayar, 10) || 0), 0);
+  const minExp = earliestExpDate(selected);
   let rows = '';
   selected.forEach(i => {
     const cicil = isCicil(i);
@@ -1396,6 +1434,7 @@ function showPaymentModal() {
       <div><span class="pi-lbl">Kelas</span><div class="pi-val">${esc(siswaBayar.kelas) || '-'}</div></div>
       <div><span class="pi-lbl">NIS</span><div class="pi-val">${esc(siswaBayar.no_cust || siswaBayar.num2nd) || '-'}</div></div>
       <div><span class="pi-lbl">Nomor VA</span><div class="pi-val">${esc(formatNovaDisplay(siswaBayar.va_number || siswaBayar.no_cust)) || '-'}</div></div>
+      <div><span class="pi-lbl">Exp Date VA</span><div class="pi-val">${esc(formatExpDate(minExp))}</div></div>
     </div>
     <div class="pay-tbl-wrap">
       <table class="pay-tbl">
